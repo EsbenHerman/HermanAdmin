@@ -1,19 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchNetWorthDashboard } from '../api/client'
-
-function formatSEK(value: number): string {
-  return new Intl.NumberFormat('sv-SE', {
-    style: 'currency',
-    currency: 'SEK',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-function formatYears(years: number): string {
-  if (years <= 0) return '✅ Achieved!'
-  if (years < 0) return '∞'
-  return `${years.toFixed(1)} years`
-}
+import { fetchNetWorthDashboard } from '../api'
+import { formatSEK, formatYears } from '../utils'
 
 export default function Dashboard() {
   const { data, isLoading, error } = useQuery({

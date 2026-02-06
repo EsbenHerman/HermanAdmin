@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/api"
-	"github.com/EsbenHerman/HermanAdmin/backend/internal/db"
+	"github.com/EsbenHerman/HermanAdmin/backend/internal/core"
+	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/networth"
 	"github.com/joho/godotenv"
 )
 
@@ -24,16 +25,18 @@ func main() {
 		dbURL = "postgres://herman:herman@localhost:5432/hermanadmin?sslmode=disable"
 	}
 
-	pool, err := db.Connect(context.Background(), dbURL)
+	pool, err := core.Connect(context.Background(), dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer pool.Close()
 
-	// Run migrations
-	if err := db.Migrate(context.Background(), pool); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+	// Run feature migrations
+	if err := networth.Migrate(context.Background(), pool); err != nil {
+		log.Fatalf("Failed to run networth migrations: %v", err)
 	}
+	// Future features run migrations here:
+	// tasks.Migrate(ctx, pool)
 
 	// Create router
 	router := api.NewRouter(pool)

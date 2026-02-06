@@ -1,16 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchAssets, createAsset, deleteAsset, Asset } from '../api/client'
+import { fetchAssets, createAsset, deleteAsset } from '../api'
+import { formatSEK } from '../utils'
+import type { Asset } from '../types'
 
 const CATEGORIES = ['Real Estate', 'Equity - Public', 'Equity - Private', 'Cash', 'Other']
-
-function formatSEK(value: number): string {
-  return new Intl.NumberFormat('sv-SE', {
-    style: 'currency',
-    currency: 'SEK',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
 
 export default function Assets() {
   const queryClient = useQueryClient()

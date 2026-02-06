@@ -1,14 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchDebts, createDebt, deleteDebt, Debt } from '../api/client'
-
-function formatSEK(value: number): string {
-  return new Intl.NumberFormat('sv-SE', {
-    style: 'currency',
-    currency: 'SEK',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+import { fetchDebts, createDebt, deleteDebt } from '../api'
+import { formatSEK } from '../utils'
+import type { Debt } from '../types'
 
 export default function Debts() {
   const queryClient = useQueryClient()

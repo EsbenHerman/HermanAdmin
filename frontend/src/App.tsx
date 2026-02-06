@@ -1,7 +1,5 @@
 import { Routes, Route, Link } from 'react-router-dom'
-import Dashboard from './pages/Dashboard'
-import Assets from './pages/Assets'
-import Debts from './pages/Debts'
+import { Dashboard, Assets, Debts } from './features/networth'
 
 function App() {
   return (
