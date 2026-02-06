@@ -51,6 +51,16 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 			activity_training_volume INT
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_oura_daily_day ON oura_daily(day DESC)`,
+
+		// Workouts table
+		`CREATE TABLE IF NOT EXISTS workouts (
+			id BIGSERIAL PRIMARY KEY,
+			date DATE NOT NULL,
+			type VARCHAR(50) NOT NULL,
+			notes TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(date DESC)`,
 	}
 
 	for _, migration := range migrations {

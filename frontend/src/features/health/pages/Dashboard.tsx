@@ -1,6 +1,15 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchHealthDashboard, fetchHealthHistory } from '../api'
 import HealthScoreChart from '../components/HealthScoreChart'
+import WeekdayAveragesChart from '../components/WeekdayAveragesChart'
+
+const DATE_RANGES = [
+  { label: '1M', days: 30 },
+  { label: '3M', days: 90 },
+  { label: '6M', days: 180 },
+  { label: '1Y', days: 365 },
+] as const
 
 function ScoreCard({ 
   emoji, 
@@ -45,14 +54,16 @@ function ScoreCard({
 }
 
 export function Dashboard() {
+  const [selectedDays, setSelectedDays] = useState(30)
+
   const { data: dashboard, isLoading, error } = useQuery({
     queryKey: ['health-dashboard'],
     queryFn: fetchHealthDashboard,
   })
 
   const { data: history } = useQuery({
-    queryKey: ['health-history'],
-    queryFn: () => fetchHealthHistory(60),
+    queryKey: ['health-history', selectedDays],
+    queryFn: () => fetchHealthHistory(selectedDays),
   })
 
   if (isLoading) {
@@ -78,9 +89,28 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Health Dashboard</h1>
-        <p className="text-sm text-gray-500">Latest data: {dashboard.latest_day}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Health Dashboard</h1>
+          <p className="text-sm text-gray-500">Latest data: {dashboard.latest_day}</p>
+        </div>
+        
+        {/* Date Range Selector */}
+        <div className="flex rounded-lg overflow-hidden border border-gray-300">
+          {DATE_RANGES.map(({ label, days }) => (
+            <button
+              key={days}
+              onClick={() => setSelectedDays(days)}
+              className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                selectedDays === days
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              } ${days !== 30 ? 'border-l border-gray-300' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Score Cards */}
@@ -109,6 +139,13 @@ export function Dashboard() {
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Score History</h2>
         <HealthScoreChart history={history || []} />
+      </div>
+
+      {/* Weekday Averages Chart */}
+      <div className="bg-white shadow rounded-lg p-6">
+        <h2 className="text-lg font-medium text-gray-900 mb-4">Weekday Averages</h2>
+        <p className="text-sm text-gray-500 mb-4">Average scores by day of week</p>
+        <WeekdayAveragesChart history={history || []} />
       </div>
     </div>
   )

@@ -18,6 +18,12 @@ func RegisterRoutes(r chi.Router, db *pgxpool.Pool) {
 
 		// Bulk upsert for historical import
 		r.Post("/oura/bulk", h.BulkUpsertOuraDaily)
+
+		// Workouts
+		r.Get("/workouts", h.ListWorkouts)
+		r.Post("/workouts", h.CreateWorkout)
+		r.Get("/workouts/{id}", h.GetWorkout)
+		r.Delete("/workouts/{id}", h.DeleteWorkout)
 	})
 
 	// Dashboard endpoints

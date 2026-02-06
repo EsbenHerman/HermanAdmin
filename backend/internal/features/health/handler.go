@@ -383,3 +383,125 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 
 	core.WriteJSON(w, http.StatusOK, history)
 }
+
+// --- Workout handlers ---
+
+// ListWorkouts returns all workouts, ordered by date desc
+func (h *Handler) ListWorkouts(w http.ResponseWriter, r *http.Request) {
+	limit := 100
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 500 {
+			limit = n
+		}
+	}
+
+	rows, err := h.db.Query(r.Context(), `
+		SELECT id, date, type, notes, created_at
+		FROM workouts
+		ORDER BY date DESC, id DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var results []Workout
+	for rows.Next() {
+		var wo Workout
+		var dateTime time.Time
+		if err := rows.Scan(&wo.ID, &dateTime, &wo.Type, &wo.Notes, &wo.CreatedAt); err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		wo.Date = formatDate(dateTime)
+		results = append(results, wo)
+	}
+
+	core.WriteJSON(w, http.StatusOK, results)
+}
+
+// CreateWorkout adds a new workout
+func (h *Handler) CreateWorkout(w http.ResponseWriter, r *http.Request) {
+	var input WorkoutInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		core.WriteError(w, http.StatusBadRequest, "Invalid JSON")
+		return
+	}
+
+	// Default to today if no date provided
+	if input.Date == "" {
+		input.Date = formatDate(time.Now())
+	}
+
+	// Validate type
+	if input.Type != "strength" && input.Type != "cardio" {
+		core.WriteError(w, http.StatusBadRequest, "type must be 'strength' or 'cardio'")
+		return
+	}
+
+	var id int64
+	err := h.db.QueryRow(r.Context(), `
+		INSERT INTO workouts (date, type, notes)
+		VALUES ($1, $2, $3)
+		RETURNING id
+	`, input.Date, input.Type, input.Notes).Scan(&id)
+
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	core.WriteJSON(w, http.StatusCreated, map[string]interface{}{
+		"id":   id,
+		"date": input.Date,
+		"type": input.Type,
+	})
+}
+
+// GetWorkout returns a single workout by ID
+func (h *Handler) GetWorkout(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "Invalid ID")
+		return
+	}
+
+	var wo Workout
+	var dateTime time.Time
+	err = h.db.QueryRow(r.Context(), `
+		SELECT id, date, type, notes, created_at
+		FROM workouts
+		WHERE id = $1
+	`, id).Scan(&wo.ID, &dateTime, &wo.Type, &wo.Notes, &wo.CreatedAt)
+	if err != nil {
+		core.WriteError(w, http.StatusNotFound, "Workout not found")
+		return
+	}
+	wo.Date = formatDate(dateTime)
+
+	core.WriteJSON(w, http.StatusOK, wo)
+}
+
+// DeleteWorkout removes a workout by ID
+func (h *Handler) DeleteWorkout(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "Invalid ID")
+		return
+	}
+
+	result, err := h.db.Exec(r.Context(), `DELETE FROM workouts WHERE id = $1`, id)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if result.RowsAffected() == 0 {
+		core.WriteError(w, http.StatusNotFound, "Workout not found")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

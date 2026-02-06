@@ -102,3 +102,19 @@ type ScoreHistoryPoint struct {
 	ReadinessScore *int   `json:"readiness_score,omitempty"`
 	ActivityScore  *int   `json:"activity_score,omitempty"`
 }
+
+// Workout represents a single workout session
+type Workout struct {
+	ID        int64     `json:"id"`
+	Date      string    `json:"date"`      // YYYY-MM-DD
+	Type      string    `json:"type"`      // strength, cardio
+	Notes     string    `json:"notes"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// WorkoutInput is the request body for creating a workout
+type WorkoutInput struct {
+	Date  string `json:"date"`  // YYYY-MM-DD, defaults to today
+	Type  string `json:"type"`  // strength, cardio
+	Notes string `json:"notes"`
+}
