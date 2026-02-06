@@ -32,7 +32,7 @@ export default function NetWorthChart({ history }: Props) {
           tick={{ fontSize: 12 }}
         />
         <Tooltip 
-          formatter={(value: number) => formatSEK(value)}
+          formatter={(value) => formatSEK(typeof value === 'number' ? value : 0)}
           labelStyle={{ color: '#374151' }}
         />
         <Legend />

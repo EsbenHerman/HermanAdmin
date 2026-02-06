@@ -270,6 +270,68 @@ func (h *Handler) CreateAssetEntry(w http.ResponseWriter, r *http.Request) {
 	core.WriteJSON(w, http.StatusCreated, entry)
 }
 
+func (h *Handler) UpdateAssetEntry(w http.ResponseWriter, r *http.Request) {
+	assetID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid asset id")
+		return
+	}
+	entryID, err := strconv.ParseInt(chi.URLParam(r, "entryId"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid entry id")
+		return
+	}
+
+	var req CreateAssetEntryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		core.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var entry AssetEntry
+	var entryDate time.Time
+	err = h.db.QueryRow(r.Context(), `
+		UPDATE asset_entries 
+		SET entry_date = $1, units = $2, unit_value = $3, notes = $4
+		WHERE id = $5 AND asset_id = $6
+		RETURNING id, asset_id, entry_date, units, unit_value, notes, created_at
+	`, req.EntryDate, req.Units, req.UnitValue, req.Notes, entryID, assetID).Scan(
+		&entry.ID, &entry.AssetID, &entryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
+	)
+	if err != nil {
+		core.WriteError(w, http.StatusNotFound, "entry not found")
+		return
+	}
+	entry.EntryDate = entryDate.Format("2006-01-02")
+
+	core.WriteJSON(w, http.StatusOK, entry)
+}
+
+func (h *Handler) DeleteAssetEntry(w http.ResponseWriter, r *http.Request) {
+	assetID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid asset id")
+		return
+	}
+	entryID, err := strconv.ParseInt(chi.URLParam(r, "entryId"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid entry id")
+		return
+	}
+
+	result, err := h.db.Exec(r.Context(), `DELETE FROM asset_entries WHERE id = $1 AND asset_id = $2`, entryID, assetID)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if result.RowsAffected() == 0 {
+		core.WriteError(w, http.StatusNotFound, "entry not found")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- Debts ---
 
 func (h *Handler) ListDebts(w http.ResponseWriter, r *http.Request) {
@@ -509,6 +571,68 @@ func (h *Handler) CreateDebtEntry(w http.ResponseWriter, r *http.Request) {
 	core.WriteJSON(w, http.StatusCreated, entry)
 }
 
+func (h *Handler) UpdateDebtEntry(w http.ResponseWriter, r *http.Request) {
+	debtID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid debt id")
+		return
+	}
+	entryID, err := strconv.ParseInt(chi.URLParam(r, "entryId"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid entry id")
+		return
+	}
+
+	var req CreateDebtEntryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		core.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var entry DebtEntry
+	var entryDate time.Time
+	err = h.db.QueryRow(r.Context(), `
+		UPDATE debt_entries 
+		SET entry_date = $1, principal = $2, monthly_payment = $3, notes = $4
+		WHERE id = $5 AND debt_id = $6
+		RETURNING id, debt_id, entry_date, principal, monthly_payment, notes, created_at
+	`, req.EntryDate, req.Principal, req.MonthlyPayment, req.Notes, entryID, debtID).Scan(
+		&entry.ID, &entry.DebtID, &entryDate, &entry.Principal, &entry.MonthlyPayment, &entry.Notes, &entry.CreatedAt,
+	)
+	if err != nil {
+		core.WriteError(w, http.StatusNotFound, "entry not found")
+		return
+	}
+	entry.EntryDate = entryDate.Format("2006-01-02")
+
+	core.WriteJSON(w, http.StatusOK, entry)
+}
+
+func (h *Handler) DeleteDebtEntry(w http.ResponseWriter, r *http.Request) {
+	debtID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid debt id")
+		return
+	}
+	entryID, err := strconv.ParseInt(chi.URLParam(r, "entryId"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid entry id")
+		return
+	}
+
+	result, err := h.db.Exec(r.Context(), `DELETE FROM debt_entries WHERE id = $1 AND debt_id = $2`, entryID, debtID)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if result.RowsAffected() == 0 {
+		core.WriteError(w, http.StatusNotFound, "entry not found")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- Dashboard ---
 
 func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
@@ -654,4 +778,132 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	core.WriteJSON(w, http.StatusOK, history)
+}
+
+// GetDetailedHistory returns net worth history with per-item breakdown
+func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
+	// Get all unique dates from entries
+	rows, err := h.db.Query(r.Context(), `
+		SELECT DISTINCT entry_date FROM (
+			SELECT entry_date FROM asset_entries
+			UNION
+			SELECT entry_date FROM debt_entries
+		) dates
+		ORDER BY entry_date ASC
+	`)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var dates []string
+	for rows.Next() {
+		var d time.Time
+		if err := rows.Scan(&d); err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		dates = append(dates, d.Format("2006-01-02"))
+	}
+
+	// Get all asset names
+	assetRows, err := h.db.Query(r.Context(), `SELECT id, name FROM assets ORDER BY name`)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer assetRows.Close()
+
+	type assetInfo struct {
+		ID   int64
+		Name string
+	}
+	var assets []assetInfo
+	var assetNames []string
+	for assetRows.Next() {
+		var a assetInfo
+		if err := assetRows.Scan(&a.ID, &a.Name); err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		assets = append(assets, a)
+		assetNames = append(assetNames, a.Name)
+	}
+
+	// Get all debt names
+	debtRows, err := h.db.Query(r.Context(), `SELECT id, name FROM debts ORDER BY name`)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer debtRows.Close()
+
+	type debtInfo struct {
+		ID   int64
+		Name string
+	}
+	var debts []debtInfo
+	var debtNames []string
+	for debtRows.Next() {
+		var d debtInfo
+		if err := debtRows.Scan(&d.ID, &d.Name); err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		debts = append(debts, d)
+		debtNames = append(debtNames, d.Name)
+	}
+
+	var history []DetailedHistoryDataPoint
+	for _, date := range dates {
+		point := DetailedHistoryDataPoint{
+			Date:   date,
+			Assets: make(map[string]float64),
+			Debts:  make(map[string]float64),
+		}
+
+		// Get each asset's value as of date
+		for _, asset := range assets {
+			var value float64
+			err := h.db.QueryRow(r.Context(), `
+				SELECT COALESCE(units * unit_value, 0)
+				FROM asset_entries 
+				WHERE asset_id = $1 AND entry_date <= $2
+				ORDER BY entry_date DESC, created_at DESC 
+				LIMIT 1
+			`, asset.ID, date).Scan(&value)
+			if err == nil && value > 0 {
+				point.Assets[asset.Name] = value
+				point.TotalAssets += value
+			}
+		}
+
+		// Get each debt's value as of date
+		for _, debt := range debts {
+			var value float64
+			err := h.db.QueryRow(r.Context(), `
+				SELECT COALESCE(principal, 0)
+				FROM debt_entries 
+				WHERE debt_id = $1 AND entry_date <= $2
+				ORDER BY entry_date DESC, created_at DESC 
+				LIMIT 1
+			`, debt.ID, date).Scan(&value)
+			if err == nil && value > 0 {
+				point.Debts[debt.Name] = value
+				point.TotalDebt += value
+			}
+		}
+
+		point.NetWorth = point.TotalAssets - point.TotalDebt
+		history = append(history, point)
+	}
+
+	response := DetailedHistoryResponse{
+		History:    history,
+		AssetNames: assetNames,
+		DebtNames:  debtNames,
+	}
+
+	core.WriteJSON(w, http.StatusOK, response)
 }

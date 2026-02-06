@@ -5,12 +5,13 @@ import type {
   DebtWithValue, 
   DebtEntry, 
   NetWorthDashboard, 
-  NetWorthDataPoint 
+  NetWorthDataPoint,
+  DetailedHistoryResponse
 } from './types'
 
 // Assets
 export const fetchAssets = (): Promise<AssetWithValue[]> =>
-  fetch(`${API_BASE}/assets`).then(r => handleResponse(r)).then(data => data || [])
+  fetch(`${API_BASE}/assets`).then(r => handleResponse<AssetWithValue[]>(r)).then(data => data || [])
 
 export interface CreateAssetRequest {
   category: string
@@ -37,7 +38,7 @@ export const deleteAsset = (id: number): Promise<void> =>
 
 // Asset Entries
 export const fetchAssetEntries = (assetId: number): Promise<AssetEntry[]> =>
-  fetch(`${API_BASE}/assets/${assetId}/entries`).then(r => handleResponse(r)).then(data => data || [])
+  fetch(`${API_BASE}/assets/${assetId}/entries`).then(r => handleResponse<AssetEntry[]>(r)).then(data => data || [])
 
 export interface CreateAssetEntryRequest {
   entry_date: string
@@ -53,9 +54,21 @@ export const createAssetEntry = (assetId: number, entry: CreateAssetEntryRequest
     body: JSON.stringify(entry),
   }).then(r => handleResponse(r))
 
+export const updateAssetEntry = (assetId: number, entryId: number, entry: CreateAssetEntryRequest): Promise<AssetEntry> =>
+  fetch(`${API_BASE}/assets/${assetId}/entries/${entryId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(entry),
+  }).then(r => handleResponse(r))
+
+export const deleteAssetEntry = (assetId: number, entryId: number): Promise<void> =>
+  fetch(`${API_BASE}/assets/${assetId}/entries/${entryId}`, { method: 'DELETE' }).then(r => {
+    if (!r.ok) throw new Error('Failed to delete')
+  })
+
 // Debts
 export const fetchDebts = (): Promise<DebtWithValue[]> =>
-  fetch(`${API_BASE}/debts`).then(r => handleResponse(r)).then(data => data || [])
+  fetch(`${API_BASE}/debts`).then(r => handleResponse<DebtWithValue[]>(r)).then(data => data || [])
 
 export interface CreateDebtRequest {
   name: string
@@ -80,7 +93,7 @@ export const deleteDebt = (id: number): Promise<void> =>
 
 // Debt Entries
 export const fetchDebtEntries = (debtId: number): Promise<DebtEntry[]> =>
-  fetch(`${API_BASE}/debts/${debtId}/entries`).then(r => handleResponse(r)).then(data => data || [])
+  fetch(`${API_BASE}/debts/${debtId}/entries`).then(r => handleResponse<DebtEntry[]>(r)).then(data => data || [])
 
 export interface CreateDebtEntryRequest {
   entry_date: string
@@ -96,6 +109,18 @@ export const createDebtEntry = (debtId: number, entry: CreateDebtEntryRequest): 
     body: JSON.stringify(entry),
   }).then(r => handleResponse(r))
 
+export const updateDebtEntry = (debtId: number, entryId: number, entry: CreateDebtEntryRequest): Promise<DebtEntry> =>
+  fetch(`${API_BASE}/debts/${debtId}/entries/${entryId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(entry),
+  }).then(r => handleResponse(r))
+
+export const deleteDebtEntry = (debtId: number, entryId: number): Promise<void> =>
+  fetch(`${API_BASE}/debts/${debtId}/entries/${entryId}`, { method: 'DELETE' }).then(r => {
+    if (!r.ok) throw new Error('Failed to delete')
+  })
+
 // Dashboard
 export const fetchNetWorthDashboard = (asOfDate?: string): Promise<NetWorthDashboard> => {
   const url = asOfDate 
@@ -106,4 +131,8 @@ export const fetchNetWorthDashboard = (asOfDate?: string): Promise<NetWorthDashb
 
 // History
 export const fetchNetWorthHistory = (): Promise<NetWorthDataPoint[]> =>
-  fetch(`${API_BASE}/dashboard/history`).then(r => handleResponse(r)).then(data => data || [])
+  fetch(`${API_BASE}/dashboard/history`).then(r => handleResponse<NetWorthDataPoint[]>(r)).then(data => data || [])
+
+// Detailed History
+export const fetchDetailedHistory = (): Promise<DetailedHistoryResponse> =>
+  fetch(`${API_BASE}/dashboard/history/detailed`).then(r => handleResponse<DetailedHistoryResponse>(r))

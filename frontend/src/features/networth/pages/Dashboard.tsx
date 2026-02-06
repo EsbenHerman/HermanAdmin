@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { fetchNetWorthDashboard, fetchNetWorthHistory, fetchAssets } from '../api'
 import { formatSEK } from '../utils'
 import NetWorthChart from '../components/NetWorthChart'
 import AllocationChart from '../components/AllocationChart'
+import DetailedChartModal from '../components/DetailedChartModal'
 
 export default function Dashboard() {
+  const [showDetailedChart, setShowDetailedChart] = useState(false)
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => fetchNetWorthDashboard(),
@@ -113,7 +116,14 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Net Worth History */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Net Worth Over Time</h2>
+          <h2 
+            className="text-lg font-medium text-gray-900 mb-4 cursor-pointer hover:text-blue-600 transition-colors"
+            onClick={() => setShowDetailedChart(true)}
+            title="Click for detailed breakdown"
+          >
+            Net Worth Over Time
+            <span className="ml-2 text-sm text-gray-400 hover:text-blue-500">📊</span>
+          </h2>
           <NetWorthChart history={history || []} />
         </div>
 
@@ -123,6 +133,12 @@ export default function Dashboard() {
           <AllocationChart assets={assets || []} />
         </div>
       </div>
+
+      {/* Detailed Chart Modal */}
+      <DetailedChartModal 
+        isOpen={showDetailedChart} 
+        onClose={() => setShowDetailedChart(false)} 
+      />
 
       {/* Category Breakdown */}
       {Object.keys(data.by_category).length > 0 && (

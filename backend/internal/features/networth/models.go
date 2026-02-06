@@ -72,3 +72,20 @@ type NetWorthDataPoint struct {
 	TotalDebt   float64 `json:"total_debt"`
 	NetWorth    float64 `json:"net_worth"`
 }
+
+// DetailedHistoryDataPoint represents a single point with per-item breakdown
+type DetailedHistoryDataPoint struct {
+	Date        string             `json:"date"`
+	TotalAssets float64            `json:"total_assets"`
+	TotalDebt   float64            `json:"total_debt"`
+	NetWorth    float64            `json:"net_worth"`
+	Assets      map[string]float64 `json:"assets"`      // asset name -> value
+	Debts       map[string]float64 `json:"debts"`       // debt name -> value (positive number, displayed as negative)
+}
+
+// DetailedHistoryResponse contains history with item names for legend
+type DetailedHistoryResponse struct {
+	History    []DetailedHistoryDataPoint `json:"history"`
+	AssetNames []string                   `json:"asset_names"`
+	DebtNames  []string                   `json:"debt_names"`
+}

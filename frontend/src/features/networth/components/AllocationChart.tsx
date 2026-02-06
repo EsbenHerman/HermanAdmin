@@ -48,7 +48,7 @@ export default function AllocationChart({ assets }: Props) {
           outerRadius={100}
           paddingAngle={2}
           dataKey="value"
-          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+          label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
           labelLine={false}
         >
           {data.map((_, index) => (
@@ -56,7 +56,7 @@ export default function AllocationChart({ assets }: Props) {
           ))}
         </Pie>
         <Tooltip 
-          formatter={(value: number) => [formatSEK(value), 'Value']}
+          formatter={(value) => [formatSEK(typeof value === 'number' ? value : 0), 'Value']}
         />
         <Legend />
       </PieChart>

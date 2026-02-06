@@ -65,3 +65,20 @@ export interface NetWorthDataPoint {
   total_debt: number
   net_worth: number
 }
+
+// Detailed historical data point with per-item breakdown
+export interface DetailedHistoryDataPoint {
+  date: string
+  total_assets: number
+  total_debt: number
+  net_worth: number
+  assets: Record<string, number>
+  debts: Record<string, number>
+}
+
+// Response for detailed history endpoint
+export interface DetailedHistoryResponse {
+  history: DetailedHistoryDataPoint[]
+  asset_names: string[]
+  debt_names: string[]
+}
