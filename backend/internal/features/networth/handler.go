@@ -45,8 +45,10 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	var assets []AssetWithValue
 	for rows.Next() {
 		var a AssetWithValue
-		var entryID, entryUnits, entryUnitValue *float64
-		var entryDate, entryNotes *string
+		var entryID *int64
+		var entryUnits, entryUnitValue *float64
+		var entryDate *time.Time
+		var entryNotes *string
 		var entryCreatedAt *time.Time
 
 		err := rows.Scan(
@@ -60,9 +62,9 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 
 		if entryID != nil {
 			a.LatestEntry = &AssetEntry{
-				ID:        int64(*entryID),
+				ID:        *entryID,
 				AssetID:   a.ID,
-				EntryDate: *entryDate,
+				EntryDate: entryDate.Format("2006-01-02"),
 				Units:     *entryUnits,
 				UnitValue: *entryUnitValue,
 				Notes:     *entryNotes,
@@ -126,13 +128,15 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 
 	// Insert initial entry
 	var entry AssetEntry
+	var entryDate time.Time
 	err = tx.QueryRow(r.Context(), `
 		INSERT INTO asset_entries (asset_id, entry_date, units, unit_value, notes)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, asset_id, entry_date, units, unit_value, notes, created_at
 	`, asset.ID, req.EntryDate, req.Units, req.UnitValue, req.Notes).Scan(
-		&entry.ID, &entry.AssetID, &entry.EntryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
+		&entry.ID, &entry.AssetID, &entryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
 	)
+	entry.EntryDate = entryDate.Format("2006-01-02")
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -212,10 +216,12 @@ func (h *Handler) ListAssetEntries(w http.ResponseWriter, r *http.Request) {
 	var entries []AssetEntry
 	for rows.Next() {
 		var e AssetEntry
-		if err := rows.Scan(&e.ID, &e.AssetID, &e.EntryDate, &e.Units, &e.UnitValue, &e.Notes, &e.CreatedAt); err != nil {
+		var entryDate time.Time
+		if err := rows.Scan(&e.ID, &e.AssetID, &entryDate, &e.Units, &e.UnitValue, &e.Notes, &e.CreatedAt); err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		e.EntryDate = entryDate.Format("2006-01-02")
 		entries = append(entries, e)
 	}
 
@@ -247,17 +253,19 @@ func (h *Handler) CreateAssetEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var entry AssetEntry
+	var entryDate time.Time
 	err = h.db.QueryRow(r.Context(), `
 		INSERT INTO asset_entries (asset_id, entry_date, units, unit_value, notes)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, asset_id, entry_date, units, unit_value, notes, created_at
 	`, assetID, req.EntryDate, req.Units, req.UnitValue, req.Notes).Scan(
-		&entry.ID, &entry.AssetID, &entry.EntryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
+		&entry.ID, &entry.AssetID, &entryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
 	)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	entry.EntryDate = entryDate.Format("2006-01-02")
 
 	core.WriteJSON(w, http.StatusCreated, entry)
 }
@@ -287,8 +295,9 @@ func (h *Handler) ListDebts(w http.ResponseWriter, r *http.Request) {
 	var debts []DebtWithValue
 	for rows.Next() {
 		var d DebtWithValue
-		var entryID *float64
-		var entryDate, entryNotes *string
+		var entryID *int64
+		var entryDate *time.Time
+		var entryNotes *string
 		var entryPrincipal, entryMonthlyPayment *float64
 		var entryCreatedAt *time.Time
 
@@ -303,9 +312,9 @@ func (h *Handler) ListDebts(w http.ResponseWriter, r *http.Request) {
 
 		if entryID != nil {
 			d.LatestEntry = &DebtEntry{
-				ID:             int64(*entryID),
+				ID:             *entryID,
 				DebtID:         d.ID,
-				EntryDate:      *entryDate,
+				EntryDate:      entryDate.Format("2006-01-02"),
 				Principal:      *entryPrincipal,
 				MonthlyPayment: *entryMonthlyPayment,
 				Notes:          *entryNotes,
@@ -359,17 +368,19 @@ func (h *Handler) CreateDebt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var entry DebtEntry
+	var entryDate time.Time
 	err = tx.QueryRow(r.Context(), `
 		INSERT INTO debt_entries (debt_id, entry_date, principal, monthly_payment, notes)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, debt_id, entry_date, principal, monthly_payment, notes, created_at
 	`, debt.ID, req.EntryDate, req.Principal, req.MonthlyPayment, req.Notes).Scan(
-		&entry.ID, &entry.DebtID, &entry.EntryDate, &entry.Principal, &entry.MonthlyPayment, &entry.Notes, &entry.CreatedAt,
+		&entry.ID, &entry.DebtID, &entryDate, &entry.Principal, &entry.MonthlyPayment, &entry.Notes, &entry.CreatedAt,
 	)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	entry.EntryDate = entryDate.Format("2006-01-02")
 
 	if err := tx.Commit(r.Context()); err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -444,10 +455,12 @@ func (h *Handler) ListDebtEntries(w http.ResponseWriter, r *http.Request) {
 	var entries []DebtEntry
 	for rows.Next() {
 		var e DebtEntry
-		if err := rows.Scan(&e.ID, &e.DebtID, &e.EntryDate, &e.Principal, &e.MonthlyPayment, &e.Notes, &e.CreatedAt); err != nil {
+		var entryDate time.Time
+		if err := rows.Scan(&e.ID, &e.DebtID, &entryDate, &e.Principal, &e.MonthlyPayment, &e.Notes, &e.CreatedAt); err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		e.EntryDate = entryDate.Format("2006-01-02")
 		entries = append(entries, e)
 	}
 
@@ -479,17 +492,19 @@ func (h *Handler) CreateDebtEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var entry DebtEntry
+	var entryDate time.Time
 	err = h.db.QueryRow(r.Context(), `
 		INSERT INTO debt_entries (debt_id, entry_date, principal, monthly_payment, notes)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, debt_id, entry_date, principal, monthly_payment, notes, created_at
 	`, debtID, req.EntryDate, req.Principal, req.MonthlyPayment, req.Notes).Scan(
-		&entry.ID, &entry.DebtID, &entry.EntryDate, &entry.Principal, &entry.MonthlyPayment, &entry.Notes, &entry.CreatedAt,
+		&entry.ID, &entry.DebtID, &entryDate, &entry.Principal, &entry.MonthlyPayment, &entry.Notes, &entry.CreatedAt,
 	)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	entry.EntryDate = entryDate.Format("2006-01-02")
 
 	core.WriteJSON(w, http.StatusCreated, entry)
 }
@@ -595,12 +610,12 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 
 	var dates []string
 	for rows.Next() {
-		var d string
+		var d time.Time
 		if err := rows.Scan(&d); err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		dates = append(dates, d)
+		dates = append(dates, d.Format("2006-01-02"))
 	}
 
 	var history []NetWorthDataPoint
