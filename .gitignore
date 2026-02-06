@@ -36,3 +36,6 @@ npm-debug.log*
 
 # Misc
 *.pem
+
+# Backend binary
+backend/server

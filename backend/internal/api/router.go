@@ -19,12 +19,21 @@ func NewRouter(db *pgxpool.Pool) *chi.Mux {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000"},
+		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000", "https://admin.karl-herman.com"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+
+	// Root route
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]string{
+			"name":    "HermanAdmin API",
+			"version": "1.0.0",
+			"status":  "running",
+		})
+	})
 
 	// Health check
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
