@@ -12,6 +12,7 @@ import (
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/api"
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/core"
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/financial"
+	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/health"
 	"github.com/joho/godotenv"
 )
 
@@ -34,6 +35,9 @@ func main() {
 	// Run feature migrations
 	if err := financial.Migrate(context.Background(), pool); err != nil {
 		log.Fatalf("Failed to run financial migrations: %v", err)
+	}
+	if err := health.Migrate(context.Background(), pool); err != nil {
+		log.Fatalf("Failed to run health migrations: %v", err)
 	}
 	// Future features run migrations here:
 	// tasks.Migrate(ctx, pool)

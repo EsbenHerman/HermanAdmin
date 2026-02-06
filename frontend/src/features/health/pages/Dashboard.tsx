@@ -1,0 +1,115 @@
+import { useQuery } from '@tanstack/react-query'
+import { fetchHealthDashboard, fetchHealthHistory } from '../api'
+import HealthScoreChart from '../components/HealthScoreChart'
+
+function ScoreCard({ 
+  emoji, 
+  label, 
+  score, 
+  avg7d 
+}: { 
+  emoji: string
+  label: string
+  score?: number
+  avg7d: number
+}) {
+  const getScoreColor = (s?: number) => {
+    if (!s) return 'text-gray-400'
+    if (s >= 80) return 'text-green-600'
+    if (s >= 60) return 'text-yellow-600'
+    return 'text-red-600'
+  }
+
+  return (
+    <div className="bg-white overflow-hidden shadow rounded-lg">
+      <div className="p-5">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <span className="text-2xl">{emoji}</span>
+          </div>
+          <div className="ml-5 w-0 flex-1">
+            <dl>
+              <dt className="text-sm font-medium text-gray-500 truncate">{label}</dt>
+              <dd className={`text-2xl font-bold ${getScoreColor(score)}`}>
+                {score ?? '—'}
+              </dd>
+              <dd className="text-sm text-gray-400">
+                7d avg: {avg7d.toFixed(0)}
+              </dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function Dashboard() {
+  const { data: dashboard, isLoading, error } = useQuery({
+    queryKey: ['health-dashboard'],
+    queryFn: fetchHealthDashboard,
+  })
+
+  const { data: history } = useQuery({
+    queryKey: ['health-history'],
+    queryFn: () => fetchHealthHistory(60),
+  })
+
+  if (isLoading) {
+    return <div className="text-center py-8">Loading...</div>
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 p-4 rounded-md">
+        <p className="text-red-800">Error loading health data: {(error as Error).message}</p>
+      </div>
+    )
+  }
+
+  if (!dashboard || !dashboard.latest_day) {
+    return (
+      <div className="text-center py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Health Dashboard</h1>
+        <p className="text-gray-500">No health data yet. Run the Oura sync to get started.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Health Dashboard</h1>
+        <p className="text-sm text-gray-500">Latest data: {dashboard.latest_day}</p>
+      </div>
+
+      {/* Score Cards */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <ScoreCard
+          emoji="😴"
+          label="Sleep Score"
+          score={dashboard.sleep_score}
+          avg7d={dashboard.avg_sleep_score_7d}
+        />
+        <ScoreCard
+          emoji="⚡"
+          label="Readiness Score"
+          score={dashboard.readiness_score}
+          avg7d={dashboard.avg_readiness_7d}
+        />
+        <ScoreCard
+          emoji="🏃"
+          label="Activity Score"
+          score={dashboard.activity_score}
+          avg7d={dashboard.avg_activity_7d}
+        />
+      </div>
+
+      {/* Score History Chart */}
+      <div className="bg-white shadow rounded-lg p-6">
+        <h2 className="text-lg font-medium text-gray-900 mb-4">Score History</h2>
+        <HealthScoreChart history={history || []} />
+      </div>
+    </div>
+  )
+}

@@ -35,7 +35,7 @@ const features: FeatureCard[] = [
     description: 'Oura ring data and health insights.',
     icon: '💪',
     path: '/health',
-    status: 'coming-soon',
+    status: 'active',
   },
 ]
 
