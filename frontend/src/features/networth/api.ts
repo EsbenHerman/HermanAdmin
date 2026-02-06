@@ -6,7 +6,8 @@ import type {
   DebtEntry, 
   NetWorthDashboard, 
   NetWorthDataPoint,
-  DetailedHistoryResponse
+  DetailedHistoryResponse,
+  CurrencyRate
 } from './types'
 
 // Assets
@@ -18,6 +19,7 @@ export interface CreateAssetRequest {
   asset_type: 'stock' | 'manual'
   name: string
   ticker?: string
+  currency?: string  // ISO 4217 code, defaults to SEK
   entry_date: string
   units: number
   unit_value: number
@@ -72,6 +74,7 @@ export const fetchDebts = (): Promise<DebtWithValue[]> =>
 
 export interface CreateDebtRequest {
   name: string
+  currency?: string  // ISO 4217 code, defaults to SEK
   interest_rate: number
   entry_date: string
   principal: number
@@ -136,3 +139,24 @@ export const fetchNetWorthHistory = (): Promise<NetWorthDataPoint[]> =>
 // Detailed History
 export const fetchDetailedHistory = (): Promise<DetailedHistoryResponse> =>
   fetch(`${API_BASE}/dashboard/history/detailed`).then(r => handleResponse<DetailedHistoryResponse>(r))
+
+// Currency Rates
+export const fetchCurrencyRates = (): Promise<CurrencyRate[]> =>
+  fetch(`${API_BASE}/currencies`).then(r => handleResponse<CurrencyRate[]>(r)).then(data => data || [])
+
+export interface UpsertCurrencyRateRequest {
+  currency: string
+  sek_rate: number
+}
+
+export const upsertCurrencyRate = (rate: UpsertCurrencyRateRequest): Promise<CurrencyRate> =>
+  fetch(`${API_BASE}/currencies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rate),
+  }).then(r => handleResponse(r))
+
+export const deleteCurrencyRate = (currency: string): Promise<void> =>
+  fetch(`${API_BASE}/currencies/${currency}`, { method: 'DELETE' }).then(r => {
+    if (!r.ok) throw new Error('Failed to delete')
+  })

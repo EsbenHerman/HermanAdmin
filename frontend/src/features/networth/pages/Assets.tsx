@@ -369,7 +369,11 @@ export default function Assets() {
                       Update
                     </button>
                     <button
-                      onClick={() => deleteMutation.mutate(asset.id)}
+                      onClick={() => {
+                        if (confirm(`Delete "${asset.name}" and all its history? This cannot be undone.`)) {
+                          deleteMutation.mutate(asset.id)
+                        }
+                      }}
                       className="text-red-600 hover:text-red-900"
                     >
                       Delete

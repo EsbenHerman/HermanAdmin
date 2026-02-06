@@ -328,7 +328,11 @@ export default function Debts() {
                       Update
                     </button>
                     <button
-                      onClick={() => deleteMutation.mutate(debt.id)}
+                      onClick={() => {
+                        if (confirm(`Delete "${debt.name}" and all its history? This cannot be undone.`)) {
+                          deleteMutation.mutate(debt.id)
+                        }
+                      }}
                       className="text-red-600 hover:text-red-900"
                     >
                       Delete

@@ -25,7 +25,7 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	// Get all assets with their latest entry
 	rows, err := h.db.Query(r.Context(), `
 		SELECT 
-			a.id, a.category, a.asset_type, a.name, a.ticker, a.created_at,
+			a.id, a.category, a.asset_type, a.name, a.ticker, a.currency, a.created_at,
 			e.id, e.entry_date, e.units, e.unit_value, e.notes, e.created_at
 		FROM assets a
 		LEFT JOIN LATERAL (
@@ -52,7 +52,7 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 		var entryCreatedAt *time.Time
 
 		err := rows.Scan(
-			&a.ID, &a.Category, &a.AssetType, &a.Name, &a.Ticker, &a.CreatedAt,
+			&a.ID, &a.Category, &a.AssetType, &a.Name, &a.Ticker, &a.Currency, &a.CreatedAt,
 			&entryID, &entryDate, &entryUnits, &entryUnitValue, &entryNotes, &entryCreatedAt,
 		)
 		if err != nil {
@@ -84,6 +84,7 @@ type CreateAssetRequest struct {
 	AssetType string  `json:"asset_type"`
 	Name      string  `json:"name"`
 	Ticker    *string `json:"ticker,omitempty"`
+	Currency  string  `json:"currency"` // ISO 4217 code, defaults to SEK
 	// Initial entry
 	EntryDate string  `json:"entry_date"`
 	Units     float64 `json:"units"`
@@ -101,6 +102,9 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	if req.AssetType == "" {
 		req.AssetType = "manual"
 	}
+	if req.Currency == "" {
+		req.Currency = "SEK"
+	}
 	if req.EntryDate == "" {
 		req.EntryDate = time.Now().Format("2006-01-02")
 	}
@@ -115,11 +119,11 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	// Insert asset
 	var asset Asset
 	err = tx.QueryRow(r.Context(), `
-		INSERT INTO assets (category, asset_type, name, ticker)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, category, asset_type, name, ticker, created_at
-	`, req.Category, req.AssetType, req.Name, req.Ticker).Scan(
-		&asset.ID, &asset.Category, &asset.AssetType, &asset.Name, &asset.Ticker, &asset.CreatedAt,
+		INSERT INTO assets (category, asset_type, name, ticker, currency)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, category, asset_type, name, ticker, currency, created_at
+	`, req.Category, req.AssetType, req.Name, req.Ticker, req.Currency).Scan(
+		&asset.ID, &asset.Category, &asset.AssetType, &asset.Name, &asset.Ticker, &asset.Currency, &asset.CreatedAt,
 	)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -165,9 +169,9 @@ func (h *Handler) GetAsset(w http.ResponseWriter, r *http.Request) {
 
 	var a Asset
 	err = h.db.QueryRow(r.Context(), `
-		SELECT id, category, asset_type, name, ticker, created_at
+		SELECT id, category, asset_type, name, ticker, currency, created_at
 		FROM assets WHERE id = $1
-	`, id).Scan(&a.ID, &a.Category, &a.AssetType, &a.Name, &a.Ticker, &a.CreatedAt)
+	`, id).Scan(&a.ID, &a.Category, &a.AssetType, &a.Name, &a.Ticker, &a.Currency, &a.CreatedAt)
 	if err != nil {
 		core.WriteError(w, http.StatusNotFound, "asset not found")
 		return
@@ -337,7 +341,7 @@ func (h *Handler) DeleteAssetEntry(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListDebts(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.db.Query(r.Context(), `
 		SELECT 
-			d.id, d.name, d.interest_rate, d.created_at,
+			d.id, d.name, d.currency, d.interest_rate, d.created_at,
 			e.id, e.entry_date, e.principal, e.monthly_payment, e.notes, e.created_at
 		FROM debts d
 		LEFT JOIN LATERAL (
@@ -364,7 +368,7 @@ func (h *Handler) ListDebts(w http.ResponseWriter, r *http.Request) {
 		var entryCreatedAt *time.Time
 
 		err := rows.Scan(
-			&d.ID, &d.Name, &d.InterestRate, &d.CreatedAt,
+			&d.ID, &d.Name, &d.Currency, &d.InterestRate, &d.CreatedAt,
 			&entryID, &entryDate, &entryPrincipal, &entryMonthlyPayment, &entryNotes, &entryCreatedAt,
 		)
 		if err != nil {
@@ -392,6 +396,7 @@ func (h *Handler) ListDebts(w http.ResponseWriter, r *http.Request) {
 
 type CreateDebtRequest struct {
 	Name         string  `json:"name"`
+	Currency     string  `json:"currency"` // ISO 4217 code, defaults to SEK
 	InterestRate float64 `json:"interest_rate"`
 	// Initial entry
 	EntryDate      string  `json:"entry_date"`
@@ -407,6 +412,9 @@ func (h *Handler) CreateDebt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Currency == "" {
+		req.Currency = "SEK"
+	}
 	if req.EntryDate == "" {
 		req.EntryDate = time.Now().Format("2006-01-02")
 	}
@@ -420,10 +428,10 @@ func (h *Handler) CreateDebt(w http.ResponseWriter, r *http.Request) {
 
 	var debt Debt
 	err = tx.QueryRow(r.Context(), `
-		INSERT INTO debts (name, interest_rate)
-		VALUES ($1, $2)
-		RETURNING id, name, interest_rate, created_at
-	`, req.Name, req.InterestRate).Scan(&debt.ID, &debt.Name, &debt.InterestRate, &debt.CreatedAt)
+		INSERT INTO debts (name, currency, interest_rate)
+		VALUES ($1, $2, $3)
+		RETURNING id, name, currency, interest_rate, created_at
+	`, req.Name, req.Currency, req.InterestRate).Scan(&debt.ID, &debt.Name, &debt.Currency, &debt.InterestRate, &debt.CreatedAt)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -466,9 +474,9 @@ func (h *Handler) GetDebt(w http.ResponseWriter, r *http.Request) {
 
 	var d Debt
 	err = h.db.QueryRow(r.Context(), `
-		SELECT id, name, interest_rate, created_at
+		SELECT id, name, currency, interest_rate, created_at
 		FROM debts WHERE id = $1
-	`, id).Scan(&d.ID, &d.Name, &d.InterestRate, &d.CreatedAt)
+	`, id).Scan(&d.ID, &d.Name, &d.Currency, &d.InterestRate, &d.CreatedAt)
 	if err != nil {
 		core.WriteError(w, http.StatusNotFound, "debt not found")
 		return
@@ -641,10 +649,10 @@ func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 		asOfDate = time.Now().Format("2006-01-02")
 	}
 
-	// Get total assets as of date
+	// Get total assets as of date (converted to SEK)
 	var totalAssets float64
 	err := h.db.QueryRow(r.Context(), `
-		SELECT COALESCE(SUM(e.units * e.unit_value), 0)
+		SELECT COALESCE(SUM(e.units * e.unit_value * COALESCE(cr.sek_rate, 1)), 0)
 		FROM assets a
 		JOIN LATERAL (
 			SELECT units, unit_value FROM asset_entries 
@@ -652,16 +660,17 @@ func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 			ORDER BY entry_date DESC, created_at DESC 
 			LIMIT 1
 		) e ON true
+		LEFT JOIN currency_rates cr ON cr.currency = a.currency
 	`, asOfDate).Scan(&totalAssets)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Get total debt as of date
+	// Get total debt as of date (converted to SEK)
 	var totalDebt float64
 	err = h.db.QueryRow(r.Context(), `
-		SELECT COALESCE(SUM(e.principal), 0)
+		SELECT COALESCE(SUM(e.principal * COALESCE(cr.sek_rate, 1)), 0)
 		FROM debts d
 		JOIN LATERAL (
 			SELECT principal FROM debt_entries 
@@ -669,15 +678,16 @@ func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 			ORDER BY entry_date DESC, created_at DESC 
 			LIMIT 1
 		) e ON true
+		LEFT JOIN currency_rates cr ON cr.currency = d.currency
 	`, asOfDate).Scan(&totalDebt)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Get breakdown by category
+	// Get breakdown by category (converted to SEK)
 	rows, err := h.db.Query(r.Context(), `
-		SELECT a.category, COALESCE(SUM(e.units * e.unit_value), 0) as total
+		SELECT a.category, COALESCE(SUM(e.units * e.unit_value * COALESCE(cr.sek_rate, 1)), 0) as total
 		FROM assets a
 		JOIN LATERAL (
 			SELECT units, unit_value FROM asset_entries 
@@ -685,6 +695,7 @@ func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 			ORDER BY entry_date DESC, created_at DESC 
 			LIMIT 1
 		) e ON true
+		LEFT JOIN currency_rates cr ON cr.currency = a.currency
 		GROUP BY a.category
 	`, asOfDate)
 	if err != nil {
@@ -705,11 +716,12 @@ func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dashboard := Dashboard{
-		TotalAssets: totalAssets,
-		TotalDebt:   totalDebt,
-		NetWorth:    totalAssets - totalDebt,
-		AsOfDate:    asOfDate,
-		ByCategory:  byCategory,
+		TotalAssets:     totalAssets,
+		TotalDebt:       totalDebt,
+		NetWorth:        totalAssets - totalDebt,
+		AsOfDate:        asOfDate,
+		ByCategory:      byCategory,
+		DisplayCurrency: "SEK",
 	}
 
 	core.WriteJSON(w, http.StatusOK, dashboard)
@@ -744,10 +756,10 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 
 	var history []NetWorthDataPoint
 	for _, date := range dates {
-		// Calculate totals as of each date
+		// Calculate totals as of each date (converted to SEK)
 		var totalAssets float64
 		h.db.QueryRow(r.Context(), `
-			SELECT COALESCE(SUM(e.units * e.unit_value), 0)
+			SELECT COALESCE(SUM(e.units * e.unit_value * COALESCE(cr.sek_rate, 1)), 0)
 			FROM assets a
 			JOIN LATERAL (
 				SELECT units, unit_value FROM asset_entries 
@@ -755,11 +767,12 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 				ORDER BY entry_date DESC, created_at DESC 
 				LIMIT 1
 			) e ON true
+			LEFT JOIN currency_rates cr ON cr.currency = a.currency
 		`, date).Scan(&totalAssets)
 
 		var totalDebt float64
 		h.db.QueryRow(r.Context(), `
-			SELECT COALESCE(SUM(e.principal), 0)
+			SELECT COALESCE(SUM(e.principal * COALESCE(cr.sek_rate, 1)), 0)
 			FROM debts d
 			JOIN LATERAL (
 				SELECT principal FROM debt_entries 
@@ -767,6 +780,7 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 				ORDER BY entry_date DESC, created_at DESC 
 				LIMIT 1
 			) e ON true
+			LEFT JOIN currency_rates cr ON cr.currency = d.currency
 		`, date).Scan(&totalDebt)
 
 		history = append(history, NetWorthDataPoint{
@@ -807,8 +821,13 @@ func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
 		dates = append(dates, d.Format("2006-01-02"))
 	}
 
-	// Get all asset names
-	assetRows, err := h.db.Query(r.Context(), `SELECT id, name FROM assets ORDER BY name`)
+	// Get all assets with currency info
+	assetRows, err := h.db.Query(r.Context(), `
+		SELECT a.id, a.name, COALESCE(cr.sek_rate, 1) as sek_rate
+		FROM assets a
+		LEFT JOIN currency_rates cr ON cr.currency = a.currency
+		ORDER BY a.name
+	`)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -816,14 +835,15 @@ func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
 	defer assetRows.Close()
 
 	type assetInfo struct {
-		ID   int64
-		Name string
+		ID      int64
+		Name    string
+		SEKRate float64
 	}
 	var assets []assetInfo
 	var assetNames []string
 	for assetRows.Next() {
 		var a assetInfo
-		if err := assetRows.Scan(&a.ID, &a.Name); err != nil {
+		if err := assetRows.Scan(&a.ID, &a.Name, &a.SEKRate); err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -831,8 +851,13 @@ func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
 		assetNames = append(assetNames, a.Name)
 	}
 
-	// Get all debt names
-	debtRows, err := h.db.Query(r.Context(), `SELECT id, name FROM debts ORDER BY name`)
+	// Get all debts with currency info
+	debtRows, err := h.db.Query(r.Context(), `
+		SELECT d.id, d.name, COALESCE(cr.sek_rate, 1) as sek_rate
+		FROM debts d
+		LEFT JOIN currency_rates cr ON cr.currency = d.currency
+		ORDER BY d.name
+	`)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -840,14 +865,15 @@ func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
 	defer debtRows.Close()
 
 	type debtInfo struct {
-		ID   int64
-		Name string
+		ID      int64
+		Name    string
+		SEKRate float64
 	}
 	var debts []debtInfo
 	var debtNames []string
 	for debtRows.Next() {
 		var d debtInfo
-		if err := debtRows.Scan(&d.ID, &d.Name); err != nil {
+		if err := debtRows.Scan(&d.ID, &d.Name, &d.SEKRate); err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -863,7 +889,7 @@ func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
 			Debts:  make(map[string]float64),
 		}
 
-		// Get each asset's value as of date
+		// Get each asset's value as of date (converted to SEK)
 		for _, asset := range assets {
 			var value float64
 			err := h.db.QueryRow(r.Context(), `
@@ -874,12 +900,13 @@ func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
 				LIMIT 1
 			`, asset.ID, date).Scan(&value)
 			if err == nil && value > 0 {
-				point.Assets[asset.Name] = value
-				point.TotalAssets += value
+				sekValue := value * asset.SEKRate
+				point.Assets[asset.Name] = sekValue
+				point.TotalAssets += sekValue
 			}
 		}
 
-		// Get each debt's value as of date
+		// Get each debt's value as of date (converted to SEK)
 		for _, debt := range debts {
 			var value float64
 			err := h.db.QueryRow(r.Context(), `
@@ -890,8 +917,9 @@ func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
 				LIMIT 1
 			`, debt.ID, date).Scan(&value)
 			if err == nil && value > 0 {
-				point.Debts[debt.Name] = value
-				point.TotalDebt += value
+				sekValue := value * debt.SEKRate
+				point.Debts[debt.Name] = sekValue
+				point.TotalDebt += sekValue
 			}
 		}
 
@@ -906,4 +934,92 @@ func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	core.WriteJSON(w, http.StatusOK, response)
+}
+
+// --- Currency Rates ---
+
+func (h *Handler) ListCurrencyRates(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.db.Query(r.Context(), `
+		SELECT currency, sek_rate, updated_at
+		FROM currency_rates
+		ORDER BY currency
+	`)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var rates []CurrencyRate
+	for rows.Next() {
+		var rate CurrencyRate
+		if err := rows.Scan(&rate.Currency, &rate.SEKRate, &rate.UpdatedAt); err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		rates = append(rates, rate)
+	}
+
+	core.WriteJSON(w, http.StatusOK, rates)
+}
+
+type UpsertCurrencyRateRequest struct {
+	Currency string  `json:"currency"`
+	SEKRate  float64 `json:"sek_rate"`
+}
+
+func (h *Handler) UpsertCurrencyRate(w http.ResponseWriter, r *http.Request) {
+	var req UpsertCurrencyRateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		core.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.Currency == "" {
+		core.WriteError(w, http.StatusBadRequest, "currency is required")
+		return
+	}
+	if req.SEKRate <= 0 {
+		core.WriteError(w, http.StatusBadRequest, "sek_rate must be positive")
+		return
+	}
+
+	var rate CurrencyRate
+	err := h.db.QueryRow(r.Context(), `
+		INSERT INTO currency_rates (currency, sek_rate, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (currency) DO UPDATE SET sek_rate = $2, updated_at = NOW()
+		RETURNING currency, sek_rate, updated_at
+	`, req.Currency, req.SEKRate).Scan(&rate.Currency, &rate.SEKRate, &rate.UpdatedAt)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	core.WriteJSON(w, http.StatusOK, rate)
+}
+
+func (h *Handler) DeleteCurrencyRate(w http.ResponseWriter, r *http.Request) {
+	currency := chi.URLParam(r, "currency")
+	if currency == "" {
+		core.WriteError(w, http.StatusBadRequest, "currency is required")
+		return
+	}
+
+	if currency == "SEK" {
+		core.WriteError(w, http.StatusBadRequest, "cannot delete SEK rate")
+		return
+	}
+
+	result, err := h.db.Exec(r.Context(), `DELETE FROM currency_rates WHERE currency = $1`, currency)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if result.RowsAffected() == 0 {
+		core.WriteError(w, http.StatusNotFound, "currency rate not found")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

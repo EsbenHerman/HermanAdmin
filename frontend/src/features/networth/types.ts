@@ -5,6 +5,7 @@ export interface Asset {
   asset_type: 'stock' | 'manual'
   name: string
   ticker?: string
+  currency: string  // ISO 4217 code (SEK, USD, EUR, etc.)
   created_at: string
 }
 
@@ -29,6 +30,7 @@ export interface AssetWithValue extends Asset {
 export interface Debt {
   id: number
   name: string
+  currency: string  // ISO 4217 code (SEK, USD, EUR, etc.)
   interest_rate: number
   created_at: string
 }
@@ -49,13 +51,21 @@ export interface DebtWithValue extends Debt {
   latest_entry?: DebtEntry
 }
 
-// Dashboard summary
+// Currency exchange rate (to SEK)
+export interface CurrencyRate {
+  currency: string
+  sek_rate: number  // 1 unit of currency = X SEK
+  updated_at: string
+}
+
+// Dashboard summary (all values in SEK)
 export interface NetWorthDashboard {
   total_assets: number
   total_debt: number
   net_worth: number
   as_of_date: string
   by_category: Record<string, number>
+  display_currency: string
 }
 
 // Historical data point

@@ -36,4 +36,10 @@ func RegisterRoutes(r chi.Router, db *pgxpool.Pool) {
 	r.Get("/dashboard/networth", h.GetDashboard)
 	r.Get("/dashboard/history", h.GetHistory)
 	r.Get("/dashboard/history/detailed", h.GetDetailedHistory)
+
+	r.Route("/currencies", func(r chi.Router) {
+		r.Get("/", h.ListCurrencyRates)
+		r.Post("/", h.UpsertCurrencyRate)
+		r.Delete("/{currency}", h.DeleteCurrencyRate)
+	})
 }

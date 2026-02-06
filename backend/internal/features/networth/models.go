@@ -9,6 +9,7 @@ type Asset struct {
 	AssetType string    `json:"asset_type"` // 'stock' or 'manual'
 	Name      string    `json:"name"`
 	Ticker    *string   `json:"ticker,omitempty"` // for stocks
+	Currency  string    `json:"currency"`         // ISO 4217 code (SEK, USD, EUR, etc.)
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -34,6 +35,7 @@ type AssetWithValue struct {
 type Debt struct {
 	ID           int64     `json:"id"`
 	Name         string    `json:"name"`
+	Currency     string    `json:"currency"` // ISO 4217 code (SEK, USD, EUR, etc.)
 	InterestRate float64   `json:"interest_rate"`
 	CreatedAt    time.Time `json:"created_at"`
 }
@@ -55,14 +57,22 @@ type DebtWithValue struct {
 	LatestEntry *DebtEntry `json:"latest_entry,omitempty"`
 }
 
+// CurrencyRate represents a currency's exchange rate to SEK
+type CurrencyRate struct {
+	Currency  string    `json:"currency"`
+	SEKRate   float64   `json:"sek_rate"` // 1 unit of currency = X SEK
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // Dashboard represents the net worth dashboard summary
 type Dashboard struct {
-	TotalAssets float64              `json:"total_assets"`
-	TotalDebt   float64              `json:"total_debt"`
-	NetWorth    float64              `json:"net_worth"`
-	AsOfDate    string               `json:"as_of_date"`
-	ByCategory  map[string]float64   `json:"by_category"`
-	History     []NetWorthDataPoint  `json:"history,omitempty"`
+	TotalAssets    float64            `json:"total_assets"`     // in SEK
+	TotalDebt      float64            `json:"total_debt"`       // in SEK
+	NetWorth       float64            `json:"net_worth"`        // in SEK
+	AsOfDate       string             `json:"as_of_date"`
+	ByCategory     map[string]float64 `json:"by_category"`      // in SEK
+	DisplayCurrency string            `json:"display_currency"` // always "SEK"
+	History        []NetWorthDataPoint `json:"history,omitempty"`
 }
 
 // NetWorthDataPoint represents a single point in the net worth history
