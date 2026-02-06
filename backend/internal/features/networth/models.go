@@ -1,55 +1,74 @@
 package networth
 
-// Asset represents a financial asset
+import "time"
+
+// Asset represents a financial asset (metadata only)
 type Asset struct {
-	ID               int64   `json:"id"`
-	Category         string  `json:"category"`
-	Name             string  `json:"name"`
-	CurrentValue     float64 `json:"current_value"`
-	ExpectedReturn   float64 `json:"expected_return"`
-	ExpectedDividend float64 `json:"expected_dividend"`
-	Notes            string  `json:"notes,omitempty"`
-	CreatedAt        string  `json:"created_at"`
-	UpdatedAt        string  `json:"updated_at"`
+	ID        int64     `json:"id"`
+	Category  string    `json:"category"`
+	AssetType string    `json:"asset_type"` // 'stock' or 'manual'
+	Name      string    `json:"name"`
+	Ticker    *string   `json:"ticker,omitempty"` // for stocks
+	CreatedAt time.Time `json:"created_at"`
 }
 
-// Debt represents a financial liability
+// AssetEntry represents a point-in-time value for an asset
+type AssetEntry struct {
+	ID        int64     `json:"id"`
+	AssetID   int64     `json:"asset_id"`
+	EntryDate string    `json:"entry_date"` // YYYY-MM-DD
+	Units     float64   `json:"units"`      // shares for stocks, 1 for manual
+	UnitValue float64   `json:"unit_value"` // price per unit
+	Notes     string    `json:"notes,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// AssetWithValue combines asset metadata with its current/latest value
+type AssetWithValue struct {
+	Asset
+	LatestEntry *AssetEntry `json:"latest_entry,omitempty"`
+	TotalValue  float64     `json:"total_value"`
+}
+
+// Debt represents a financial liability (metadata only)
 type Debt struct {
-	ID             int64   `json:"id"`
-	Name           string  `json:"name"`
-	Principal      float64 `json:"principal"`
-	InterestRate   float64 `json:"interest_rate"`
-	MonthlyPayment float64 `json:"monthly_payment"`
-	RemainingTerm  int     `json:"remaining_term"` // months
-	Notes          string  `json:"notes,omitempty"`
-	CreatedAt      string  `json:"created_at"`
-	UpdatedAt      string  `json:"updated_at"`
+	ID           int64     `json:"id"`
+	Name         string    `json:"name"`
+	InterestRate float64   `json:"interest_rate"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
-// Snapshot represents a point-in-time record of net worth
-type Snapshot struct {
-	ID            int64   `json:"id"`
-	SnapshotDate  string  `json:"snapshot_date"`
-	TotalAssets   float64 `json:"total_assets"`
-	TotalDebt     float64 `json:"total_debt"`
-	NetWorth      float64 `json:"net_worth"`
-	PassiveIncome float64 `json:"passive_income"`
-	CreatedAt     string  `json:"created_at"`
+// DebtEntry represents a point-in-time value for a debt
+type DebtEntry struct {
+	ID             int64     `json:"id"`
+	DebtID         int64     `json:"debt_id"`
+	EntryDate      string    `json:"entry_date"` // YYYY-MM-DD
+	Principal      float64   `json:"principal"`  // remaining principal
+	MonthlyPayment float64   `json:"monthly_payment"`
+	Notes          string    `json:"notes,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+// DebtWithValue combines debt metadata with its current/latest value
+type DebtWithValue struct {
+	Debt
+	LatestEntry *DebtEntry `json:"latest_entry,omitempty"`
 }
 
 // Dashboard represents the net worth dashboard summary
 type Dashboard struct {
-	TotalAssets        float64 `json:"total_assets"`
-	TotalDebt          float64 `json:"total_debt"`
-	NetWorth           float64 `json:"net_worth"`
-	ProjectedReturn    float64 `json:"projected_return"`
-	ProjectedDividend  float64 `json:"projected_dividend"`
-	TotalPassiveIncome float64 `json:"total_passive_income"`
-	TargetIncome       float64 `json:"target_income"`
-	GapToTarget        float64 `json:"gap_to_target"`
-	Scenarios          struct {
-		BestCase    float64 `json:"best_case"`    // years to target at 8%
-		NeutralCase float64 `json:"neutral_case"` // years to target at 5%
-		WorstCase   float64 `json:"worst_case"`   // years to target at 2%
-	} `json:"scenarios"`
+	TotalAssets float64              `json:"total_assets"`
+	TotalDebt   float64              `json:"total_debt"`
+	NetWorth    float64              `json:"net_worth"`
+	AsOfDate    string               `json:"as_of_date"`
+	ByCategory  map[string]float64   `json:"by_category"`
+	History     []NetWorthDataPoint  `json:"history,omitempty"`
+}
+
+// NetWorthDataPoint represents a single point in the net worth history
+type NetWorthDataPoint struct {
+	Date        string  `json:"date"`
+	TotalAssets float64 `json:"total_assets"`
+	TotalDebt   float64 `json:"total_debt"`
+	NetWorth    float64 `json:"net_worth"`
 }

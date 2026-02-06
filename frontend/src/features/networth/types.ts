@@ -1,49 +1,67 @@
+// Asset metadata
 export interface Asset {
   id: number
   category: string
+  asset_type: 'stock' | 'manual'
   name: string
-  current_value: number
-  expected_return: number
-  expected_dividend: number
-  notes?: string
+  ticker?: string
   created_at: string
-  updated_at: string
 }
 
+// Point-in-time asset value
+export interface AssetEntry {
+  id: number
+  asset_id: number
+  entry_date: string
+  units: number
+  unit_value: number
+  notes?: string
+  created_at: string
+}
+
+// Asset with its latest value
+export interface AssetWithValue extends Asset {
+  latest_entry?: AssetEntry
+  total_value: number
+}
+
+// Debt metadata
 export interface Debt {
   id: number
   name: string
-  principal: number
   interest_rate: number
+  created_at: string
+}
+
+// Point-in-time debt value
+export interface DebtEntry {
+  id: number
+  debt_id: number
+  entry_date: string
+  principal: number
   monthly_payment: number
-  remaining_term: number
   notes?: string
   created_at: string
-  updated_at: string
 }
 
-export interface Snapshot {
-  id: number
-  snapshot_date: string
-  total_assets: number
-  total_debt: number
-  net_worth: number
-  passive_income: number
-  created_at: string
+// Debt with its latest value
+export interface DebtWithValue extends Debt {
+  latest_entry?: DebtEntry
 }
 
+// Dashboard summary
 export interface NetWorthDashboard {
   total_assets: number
   total_debt: number
   net_worth: number
-  projected_return: number
-  projected_dividend: number
-  total_passive_income: number
-  target_income: number
-  gap_to_target: number
-  scenarios: {
-    best_case: number
-    neutral_case: number
-    worst_case: number
-  }
+  as_of_date: string
+  by_category: Record<string, number>
+}
+
+// Historical data point
+export interface NetWorthDataPoint {
+  date: string
+  total_assets: number
+  total_debt: number
+  net_worth: number
 }

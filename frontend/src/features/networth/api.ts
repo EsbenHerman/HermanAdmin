@@ -1,20 +1,31 @@
 import { API_BASE, handleResponse } from '../../shared/api/client'
-import type { Asset, Debt, NetWorthDashboard, Snapshot } from './types'
+import type { 
+  AssetWithValue, 
+  AssetEntry, 
+  DebtWithValue, 
+  DebtEntry, 
+  NetWorthDashboard, 
+  NetWorthDataPoint 
+} from './types'
 
 // Assets
-export const fetchAssets = (): Promise<Asset[]> =>
-  fetch(`${API_BASE}/assets`).then(r => handleResponse(r))
+export const fetchAssets = (): Promise<AssetWithValue[]> =>
+  fetch(`${API_BASE}/assets`).then(r => handleResponse(r)).then(data => data || [])
 
-export const createAsset = (asset: Omit<Asset, 'id' | 'created_at' | 'updated_at'>): Promise<Asset> =>
+export interface CreateAssetRequest {
+  category: string
+  asset_type: 'stock' | 'manual'
+  name: string
+  ticker?: string
+  entry_date: string
+  units: number
+  unit_value: number
+  notes?: string
+}
+
+export const createAsset = (asset: CreateAssetRequest): Promise<AssetWithValue> =>
   fetch(`${API_BASE}/assets`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(asset),
-  }).then(r => handleResponse(r))
-
-export const updateAsset = (id: number, asset: Omit<Asset, 'id' | 'created_at' | 'updated_at'>): Promise<Asset> =>
-  fetch(`${API_BASE}/assets/${id}`, {
-    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(asset),
   }).then(r => handleResponse(r))
@@ -24,20 +35,40 @@ export const deleteAsset = (id: number): Promise<void> =>
     if (!r.ok) throw new Error('Failed to delete')
   })
 
-// Debts
-export const fetchDebts = (): Promise<Debt[]> =>
-  fetch(`${API_BASE}/debts`).then(r => handleResponse(r))
+// Asset Entries
+export const fetchAssetEntries = (assetId: number): Promise<AssetEntry[]> =>
+  fetch(`${API_BASE}/assets/${assetId}/entries`).then(r => handleResponse(r)).then(data => data || [])
 
-export const createDebt = (debt: Omit<Debt, 'id' | 'created_at' | 'updated_at'>): Promise<Debt> =>
-  fetch(`${API_BASE}/debts`, {
+export interface CreateAssetEntryRequest {
+  entry_date: string
+  units: number
+  unit_value: number
+  notes?: string
+}
+
+export const createAssetEntry = (assetId: number, entry: CreateAssetEntryRequest): Promise<AssetEntry> =>
+  fetch(`${API_BASE}/assets/${assetId}/entries`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(debt),
+    body: JSON.stringify(entry),
   }).then(r => handleResponse(r))
 
-export const updateDebt = (id: number, debt: Omit<Debt, 'id' | 'created_at' | 'updated_at'>): Promise<Debt> =>
-  fetch(`${API_BASE}/debts/${id}`, {
-    method: 'PUT',
+// Debts
+export const fetchDebts = (): Promise<DebtWithValue[]> =>
+  fetch(`${API_BASE}/debts`).then(r => handleResponse(r)).then(data => data || [])
+
+export interface CreateDebtRequest {
+  name: string
+  interest_rate: number
+  entry_date: string
+  principal: number
+  monthly_payment: number
+  notes?: string
+}
+
+export const createDebt = (debt: CreateDebtRequest): Promise<DebtWithValue> =>
+  fetch(`${API_BASE}/debts`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(debt),
   }).then(r => handleResponse(r))
@@ -47,13 +78,32 @@ export const deleteDebt = (id: number): Promise<void> =>
     if (!r.ok) throw new Error('Failed to delete')
   })
 
+// Debt Entries
+export const fetchDebtEntries = (debtId: number): Promise<DebtEntry[]> =>
+  fetch(`${API_BASE}/debts/${debtId}/entries`).then(r => handleResponse(r)).then(data => data || [])
+
+export interface CreateDebtEntryRequest {
+  entry_date: string
+  principal: number
+  monthly_payment: number
+  notes?: string
+}
+
+export const createDebtEntry = (debtId: number, entry: CreateDebtEntryRequest): Promise<DebtEntry> =>
+  fetch(`${API_BASE}/debts/${debtId}/entries`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(entry),
+  }).then(r => handleResponse(r))
+
 // Dashboard
-export const fetchNetWorthDashboard = (): Promise<NetWorthDashboard> =>
-  fetch(`${API_BASE}/dashboard/networth`).then(r => handleResponse(r))
+export const fetchNetWorthDashboard = (asOfDate?: string): Promise<NetWorthDashboard> => {
+  const url = asOfDate 
+    ? `${API_BASE}/dashboard/networth?as_of=${asOfDate}` 
+    : `${API_BASE}/dashboard/networth`
+  return fetch(url).then(r => handleResponse(r))
+}
 
-// Snapshots
-export const fetchSnapshots = (): Promise<Snapshot[]> =>
-  fetch(`${API_BASE}/snapshots`).then(r => handleResponse(r))
-
-export const createSnapshot = (): Promise<Snapshot> =>
-  fetch(`${API_BASE}/snapshots`, { method: 'POST' }).then(r => handleResponse(r))
+// History
+export const fetchNetWorthHistory = (): Promise<NetWorthDataPoint[]> =>
+  fetch(`${API_BASE}/dashboard/history`).then(r => handleResponse(r)).then(data => data || [])

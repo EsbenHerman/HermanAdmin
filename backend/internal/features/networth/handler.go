@@ -2,21 +2,19 @@ package networth
 
 import (
 	"encoding/json"
-	"math"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/core"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Handler handles net worth related HTTP requests
 type Handler struct {
 	db *pgxpool.Pool
 }
 
-// NewHandler creates a new net worth handler
 func NewHandler(db *pgxpool.Pool) *Handler {
 	return &Handler{db: db}
 }
@@ -24,9 +22,19 @@ func NewHandler(db *pgxpool.Pool) *Handler {
 // --- Assets ---
 
 func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
+	// Get all assets with their latest entry
 	rows, err := h.db.Query(r.Context(), `
-		SELECT id, category, name, current_value, expected_return, expected_dividend, notes, created_at, updated_at
-		FROM assets ORDER BY category, name
+		SELECT 
+			a.id, a.category, a.asset_type, a.name, a.ticker, a.created_at,
+			e.id, e.entry_date, e.units, e.unit_value, e.notes, e.created_at
+		FROM assets a
+		LEFT JOIN LATERAL (
+			SELECT * FROM asset_entries 
+			WHERE asset_id = a.id 
+			ORDER BY entry_date DESC, created_at DESC 
+			LIMIT 1
+		) e ON true
+		ORDER BY a.category, a.name
 	`)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -34,38 +42,114 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var assets []Asset
+	var assets []AssetWithValue
 	for rows.Next() {
-		var a Asset
-		err := rows.Scan(&a.ID, &a.Category, &a.Name, &a.CurrentValue, &a.ExpectedReturn, &a.ExpectedDividend, &a.Notes, &a.CreatedAt, &a.UpdatedAt)
+		var a AssetWithValue
+		var entryID, entryUnits, entryUnitValue *float64
+		var entryDate, entryNotes *string
+		var entryCreatedAt *time.Time
+
+		err := rows.Scan(
+			&a.ID, &a.Category, &a.AssetType, &a.Name, &a.Ticker, &a.CreatedAt,
+			&entryID, &entryDate, &entryUnits, &entryUnitValue, &entryNotes, &entryCreatedAt,
+		)
 		if err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+
+		if entryID != nil {
+			a.LatestEntry = &AssetEntry{
+				ID:        int64(*entryID),
+				AssetID:   a.ID,
+				EntryDate: *entryDate,
+				Units:     *entryUnits,
+				UnitValue: *entryUnitValue,
+				Notes:     *entryNotes,
+				CreatedAt: *entryCreatedAt,
+			}
+			a.TotalValue = a.LatestEntry.Units * a.LatestEntry.UnitValue
+		}
+
 		assets = append(assets, a)
 	}
 
 	core.WriteJSON(w, http.StatusOK, assets)
 }
 
+type CreateAssetRequest struct {
+	Category  string  `json:"category"`
+	AssetType string  `json:"asset_type"`
+	Name      string  `json:"name"`
+	Ticker    *string `json:"ticker,omitempty"`
+	// Initial entry
+	EntryDate string  `json:"entry_date"`
+	Units     float64 `json:"units"`
+	UnitValue float64 `json:"unit_value"`
+	Notes     string  `json:"notes,omitempty"`
+}
+
 func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
-	var a Asset
-	if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
+	var req CreateAssetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		core.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	err := h.db.QueryRow(r.Context(), `
-		INSERT INTO assets (category, name, current_value, expected_return, expected_dividend, notes)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, created_at, updated_at
-	`, a.Category, a.Name, a.CurrentValue, a.ExpectedReturn, a.ExpectedDividend, a.Notes).Scan(&a.ID, &a.CreatedAt, &a.UpdatedAt)
+	if req.AssetType == "" {
+		req.AssetType = "manual"
+	}
+	if req.EntryDate == "" {
+		req.EntryDate = time.Now().Format("2006-01-02")
+	}
+
+	tx, err := h.db.Begin(r.Context())
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	// Insert asset
+	var asset Asset
+	err = tx.QueryRow(r.Context(), `
+		INSERT INTO assets (category, asset_type, name, ticker)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, category, asset_type, name, ticker, created_at
+	`, req.Category, req.AssetType, req.Name, req.Ticker).Scan(
+		&asset.ID, &asset.Category, &asset.AssetType, &asset.Name, &asset.Ticker, &asset.CreatedAt,
+	)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	core.WriteJSON(w, http.StatusCreated, a)
+	// Insert initial entry
+	var entry AssetEntry
+	err = tx.QueryRow(r.Context(), `
+		INSERT INTO asset_entries (asset_id, entry_date, units, unit_value, notes)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, asset_id, entry_date, units, unit_value, notes, created_at
+	`, asset.ID, req.EntryDate, req.Units, req.UnitValue, req.Notes).Scan(
+		&entry.ID, &entry.AssetID, &entry.EntryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
+	)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	result := AssetWithValue{
+		Asset:       asset,
+		LatestEntry: &entry,
+		TotalValue:  entry.Units * entry.UnitValue,
+	}
+
+	core.WriteJSON(w, http.StatusCreated, result)
 }
 
 func (h *Handler) GetAsset(w http.ResponseWriter, r *http.Request) {
@@ -77,40 +161,14 @@ func (h *Handler) GetAsset(w http.ResponseWriter, r *http.Request) {
 
 	var a Asset
 	err = h.db.QueryRow(r.Context(), `
-		SELECT id, category, name, current_value, expected_return, expected_dividend, notes, created_at, updated_at
+		SELECT id, category, asset_type, name, ticker, created_at
 		FROM assets WHERE id = $1
-	`, id).Scan(&a.ID, &a.Category, &a.Name, &a.CurrentValue, &a.ExpectedReturn, &a.ExpectedDividend, &a.Notes, &a.CreatedAt, &a.UpdatedAt)
+	`, id).Scan(&a.ID, &a.Category, &a.AssetType, &a.Name, &a.Ticker, &a.CreatedAt)
 	if err != nil {
 		core.WriteError(w, http.StatusNotFound, "asset not found")
 		return
 	}
 
-	core.WriteJSON(w, http.StatusOK, a)
-}
-
-func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		core.WriteError(w, http.StatusBadRequest, "invalid id")
-		return
-	}
-
-	var a Asset
-	if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
-		core.WriteError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	_, err = h.db.Exec(r.Context(), `
-		UPDATE assets SET category = $1, name = $2, current_value = $3, expected_return = $4, expected_dividend = $5, notes = $6, updated_at = NOW()
-		WHERE id = $7
-	`, a.Category, a.Name, a.CurrentValue, a.ExpectedReturn, a.ExpectedDividend, a.Notes, id)
-	if err != nil {
-		core.WriteError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	a.ID = id
 	core.WriteJSON(w, http.StatusOK, a)
 }
 
@@ -130,12 +188,95 @@ func (h *Handler) DeleteAsset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// --- Asset Entries ---
+
+func (h *Handler) ListAssetEntries(w http.ResponseWriter, r *http.Request) {
+	assetID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid asset id")
+		return
+	}
+
+	rows, err := h.db.Query(r.Context(), `
+		SELECT id, asset_id, entry_date, units, unit_value, notes, created_at
+		FROM asset_entries
+		WHERE asset_id = $1
+		ORDER BY entry_date DESC, created_at DESC
+	`, assetID)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var entries []AssetEntry
+	for rows.Next() {
+		var e AssetEntry
+		if err := rows.Scan(&e.ID, &e.AssetID, &e.EntryDate, &e.Units, &e.UnitValue, &e.Notes, &e.CreatedAt); err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		entries = append(entries, e)
+	}
+
+	core.WriteJSON(w, http.StatusOK, entries)
+}
+
+type CreateAssetEntryRequest struct {
+	EntryDate string  `json:"entry_date"`
+	Units     float64 `json:"units"`
+	UnitValue float64 `json:"unit_value"`
+	Notes     string  `json:"notes,omitempty"`
+}
+
+func (h *Handler) CreateAssetEntry(w http.ResponseWriter, r *http.Request) {
+	assetID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid asset id")
+		return
+	}
+
+	var req CreateAssetEntryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		core.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.EntryDate == "" {
+		req.EntryDate = time.Now().Format("2006-01-02")
+	}
+
+	var entry AssetEntry
+	err = h.db.QueryRow(r.Context(), `
+		INSERT INTO asset_entries (asset_id, entry_date, units, unit_value, notes)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, asset_id, entry_date, units, unit_value, notes, created_at
+	`, assetID, req.EntryDate, req.Units, req.UnitValue, req.Notes).Scan(
+		&entry.ID, &entry.AssetID, &entry.EntryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
+	)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	core.WriteJSON(w, http.StatusCreated, entry)
+}
+
 // --- Debts ---
 
 func (h *Handler) ListDebts(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.db.Query(r.Context(), `
-		SELECT id, name, principal, interest_rate, monthly_payment, remaining_term, notes, created_at, updated_at
-		FROM debts ORDER BY principal DESC
+		SELECT 
+			d.id, d.name, d.interest_rate, d.created_at,
+			e.id, e.entry_date, e.principal, e.monthly_payment, e.notes, e.created_at
+		FROM debts d
+		LEFT JOIN LATERAL (
+			SELECT * FROM debt_entries 
+			WHERE debt_id = d.id 
+			ORDER BY entry_date DESC, created_at DESC 
+			LIMIT 1
+		) e ON true
+		ORDER BY d.name
 	`)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -143,38 +284,104 @@ func (h *Handler) ListDebts(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var debts []Debt
+	var debts []DebtWithValue
 	for rows.Next() {
-		var d Debt
-		err := rows.Scan(&d.ID, &d.Name, &d.Principal, &d.InterestRate, &d.MonthlyPayment, &d.RemainingTerm, &d.Notes, &d.CreatedAt, &d.UpdatedAt)
+		var d DebtWithValue
+		var entryID *float64
+		var entryDate, entryNotes *string
+		var entryPrincipal, entryMonthlyPayment *float64
+		var entryCreatedAt *time.Time
+
+		err := rows.Scan(
+			&d.ID, &d.Name, &d.InterestRate, &d.CreatedAt,
+			&entryID, &entryDate, &entryPrincipal, &entryMonthlyPayment, &entryNotes, &entryCreatedAt,
+		)
 		if err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+
+		if entryID != nil {
+			d.LatestEntry = &DebtEntry{
+				ID:             int64(*entryID),
+				DebtID:         d.ID,
+				EntryDate:      *entryDate,
+				Principal:      *entryPrincipal,
+				MonthlyPayment: *entryMonthlyPayment,
+				Notes:          *entryNotes,
+				CreatedAt:      *entryCreatedAt,
+			}
+		}
+
 		debts = append(debts, d)
 	}
 
 	core.WriteJSON(w, http.StatusOK, debts)
 }
 
+type CreateDebtRequest struct {
+	Name         string  `json:"name"`
+	InterestRate float64 `json:"interest_rate"`
+	// Initial entry
+	EntryDate      string  `json:"entry_date"`
+	Principal      float64 `json:"principal"`
+	MonthlyPayment float64 `json:"monthly_payment"`
+	Notes          string  `json:"notes,omitempty"`
+}
+
 func (h *Handler) CreateDebt(w http.ResponseWriter, r *http.Request) {
-	var d Debt
-	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
+	var req CreateDebtRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		core.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	err := h.db.QueryRow(r.Context(), `
-		INSERT INTO debts (name, principal, interest_rate, monthly_payment, remaining_term, notes)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, created_at, updated_at
-	`, d.Name, d.Principal, d.InterestRate, d.MonthlyPayment, d.RemainingTerm, d.Notes).Scan(&d.ID, &d.CreatedAt, &d.UpdatedAt)
+	if req.EntryDate == "" {
+		req.EntryDate = time.Now().Format("2006-01-02")
+	}
+
+	tx, err := h.db.Begin(r.Context())
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	var debt Debt
+	err = tx.QueryRow(r.Context(), `
+		INSERT INTO debts (name, interest_rate)
+		VALUES ($1, $2)
+		RETURNING id, name, interest_rate, created_at
+	`, req.Name, req.InterestRate).Scan(&debt.ID, &debt.Name, &debt.InterestRate, &debt.CreatedAt)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	core.WriteJSON(w, http.StatusCreated, d)
+	var entry DebtEntry
+	err = tx.QueryRow(r.Context(), `
+		INSERT INTO debt_entries (debt_id, entry_date, principal, monthly_payment, notes)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, debt_id, entry_date, principal, monthly_payment, notes, created_at
+	`, debt.ID, req.EntryDate, req.Principal, req.MonthlyPayment, req.Notes).Scan(
+		&entry.ID, &entry.DebtID, &entry.EntryDate, &entry.Principal, &entry.MonthlyPayment, &entry.Notes, &entry.CreatedAt,
+	)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	result := DebtWithValue{
+		Debt:        debt,
+		LatestEntry: &entry,
+	}
+
+	core.WriteJSON(w, http.StatusCreated, result)
 }
 
 func (h *Handler) GetDebt(w http.ResponseWriter, r *http.Request) {
@@ -186,40 +393,14 @@ func (h *Handler) GetDebt(w http.ResponseWriter, r *http.Request) {
 
 	var d Debt
 	err = h.db.QueryRow(r.Context(), `
-		SELECT id, name, principal, interest_rate, monthly_payment, remaining_term, notes, created_at, updated_at
+		SELECT id, name, interest_rate, created_at
 		FROM debts WHERE id = $1
-	`, id).Scan(&d.ID, &d.Name, &d.Principal, &d.InterestRate, &d.MonthlyPayment, &d.RemainingTerm, &d.Notes, &d.CreatedAt, &d.UpdatedAt)
+	`, id).Scan(&d.ID, &d.Name, &d.InterestRate, &d.CreatedAt)
 	if err != nil {
 		core.WriteError(w, http.StatusNotFound, "debt not found")
 		return
 	}
 
-	core.WriteJSON(w, http.StatusOK, d)
-}
-
-func (h *Handler) UpdateDebt(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		core.WriteError(w, http.StatusBadRequest, "invalid id")
-		return
-	}
-
-	var d Debt
-	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
-		core.WriteError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	_, err = h.db.Exec(r.Context(), `
-		UPDATE debts SET name = $1, principal = $2, interest_rate = $3, monthly_payment = $4, remaining_term = $5, notes = $6, updated_at = NOW()
-		WHERE id = $7
-	`, d.Name, d.Principal, d.InterestRate, d.MonthlyPayment, d.RemainingTerm, d.Notes, id)
-	if err != nil {
-		core.WriteError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	d.ID = id
 	core.WriteJSON(w, http.StatusOK, d)
 }
 
@@ -239,12 +420,172 @@ func (h *Handler) DeleteDebt(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// --- Snapshots ---
+// --- Debt Entries ---
 
-func (h *Handler) ListSnapshots(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListDebtEntries(w http.ResponseWriter, r *http.Request) {
+	debtID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid debt id")
+		return
+	}
+
 	rows, err := h.db.Query(r.Context(), `
-		SELECT id, snapshot_date, total_assets, total_debt, net_worth, passive_income, created_at
-		FROM networth_snapshots ORDER BY snapshot_date ASC
+		SELECT id, debt_id, entry_date, principal, monthly_payment, notes, created_at
+		FROM debt_entries
+		WHERE debt_id = $1
+		ORDER BY entry_date DESC, created_at DESC
+	`, debtID)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var entries []DebtEntry
+	for rows.Next() {
+		var e DebtEntry
+		if err := rows.Scan(&e.ID, &e.DebtID, &e.EntryDate, &e.Principal, &e.MonthlyPayment, &e.Notes, &e.CreatedAt); err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		entries = append(entries, e)
+	}
+
+	core.WriteJSON(w, http.StatusOK, entries)
+}
+
+type CreateDebtEntryRequest struct {
+	EntryDate      string  `json:"entry_date"`
+	Principal      float64 `json:"principal"`
+	MonthlyPayment float64 `json:"monthly_payment"`
+	Notes          string  `json:"notes,omitempty"`
+}
+
+func (h *Handler) CreateDebtEntry(w http.ResponseWriter, r *http.Request) {
+	debtID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid debt id")
+		return
+	}
+
+	var req CreateDebtEntryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		core.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.EntryDate == "" {
+		req.EntryDate = time.Now().Format("2006-01-02")
+	}
+
+	var entry DebtEntry
+	err = h.db.QueryRow(r.Context(), `
+		INSERT INTO debt_entries (debt_id, entry_date, principal, monthly_payment, notes)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, debt_id, entry_date, principal, monthly_payment, notes, created_at
+	`, debtID, req.EntryDate, req.Principal, req.MonthlyPayment, req.Notes).Scan(
+		&entry.ID, &entry.DebtID, &entry.EntryDate, &entry.Principal, &entry.MonthlyPayment, &entry.Notes, &entry.CreatedAt,
+	)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	core.WriteJSON(w, http.StatusCreated, entry)
+}
+
+// --- Dashboard ---
+
+func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
+	asOfDate := r.URL.Query().Get("as_of")
+	if asOfDate == "" {
+		asOfDate = time.Now().Format("2006-01-02")
+	}
+
+	// Get total assets as of date
+	var totalAssets float64
+	err := h.db.QueryRow(r.Context(), `
+		SELECT COALESCE(SUM(e.units * e.unit_value), 0)
+		FROM assets a
+		JOIN LATERAL (
+			SELECT units, unit_value FROM asset_entries 
+			WHERE asset_id = a.id AND entry_date <= $1
+			ORDER BY entry_date DESC, created_at DESC 
+			LIMIT 1
+		) e ON true
+	`, asOfDate).Scan(&totalAssets)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Get total debt as of date
+	var totalDebt float64
+	err = h.db.QueryRow(r.Context(), `
+		SELECT COALESCE(SUM(e.principal), 0)
+		FROM debts d
+		JOIN LATERAL (
+			SELECT principal FROM debt_entries 
+			WHERE debt_id = d.id AND entry_date <= $1
+			ORDER BY entry_date DESC, created_at DESC 
+			LIMIT 1
+		) e ON true
+	`, asOfDate).Scan(&totalDebt)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Get breakdown by category
+	rows, err := h.db.Query(r.Context(), `
+		SELECT a.category, COALESCE(SUM(e.units * e.unit_value), 0) as total
+		FROM assets a
+		JOIN LATERAL (
+			SELECT units, unit_value FROM asset_entries 
+			WHERE asset_id = a.id AND entry_date <= $1
+			ORDER BY entry_date DESC, created_at DESC 
+			LIMIT 1
+		) e ON true
+		GROUP BY a.category
+	`, asOfDate)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	byCategory := make(map[string]float64)
+	for rows.Next() {
+		var cat string
+		var total float64
+		if err := rows.Scan(&cat, &total); err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		byCategory[cat] = total
+	}
+
+	dashboard := Dashboard{
+		TotalAssets: totalAssets,
+		TotalDebt:   totalDebt,
+		NetWorth:    totalAssets - totalDebt,
+		AsOfDate:    asOfDate,
+		ByCategory:  byCategory,
+	}
+
+	core.WriteJSON(w, http.StatusOK, dashboard)
+}
+
+// GetHistory returns net worth history over time
+func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
+	// Get all unique dates from entries
+	rows, err := h.db.Query(r.Context(), `
+		SELECT DISTINCT entry_date FROM (
+			SELECT entry_date FROM asset_entries
+			UNION
+			SELECT entry_date FROM debt_entries
+		) dates
+		ORDER BY entry_date ASC
 	`)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -252,115 +593,50 @@ func (h *Handler) ListSnapshots(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var snapshots []Snapshot
+	var dates []string
 	for rows.Next() {
-		var s Snapshot
-		err := rows.Scan(&s.ID, &s.SnapshotDate, &s.TotalAssets, &s.TotalDebt, &s.NetWorth, &s.PassiveIncome, &s.CreatedAt)
-		if err != nil {
+		var d string
+		if err := rows.Scan(&d); err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		snapshots = append(snapshots, s)
+		dates = append(dates, d)
 	}
 
-	core.WriteJSON(w, http.StatusOK, snapshots)
-}
+	var history []NetWorthDataPoint
+	for _, date := range dates {
+		// Calculate totals as of each date
+		var totalAssets float64
+		h.db.QueryRow(r.Context(), `
+			SELECT COALESCE(SUM(e.units * e.unit_value), 0)
+			FROM assets a
+			JOIN LATERAL (
+				SELECT units, unit_value FROM asset_entries 
+				WHERE asset_id = a.id AND entry_date <= $1
+				ORDER BY entry_date DESC, created_at DESC 
+				LIMIT 1
+			) e ON true
+		`, date).Scan(&totalAssets)
 
-func (h *Handler) CreateSnapshot(w http.ResponseWriter, r *http.Request) {
-	// Calculate current values
-	var totalAssets, projectedReturn, projectedDividend float64
-	err := h.db.QueryRow(r.Context(), `
-		SELECT COALESCE(SUM(current_value), 0), 
-		       COALESCE(SUM(current_value * expected_return / 100), 0),
-		       COALESCE(SUM(current_value * expected_dividend / 100), 0)
-		FROM assets
-	`).Scan(&totalAssets, &projectedReturn, &projectedDividend)
-	if err != nil {
-		core.WriteError(w, http.StatusInternalServerError, err.Error())
-		return
+		var totalDebt float64
+		h.db.QueryRow(r.Context(), `
+			SELECT COALESCE(SUM(e.principal), 0)
+			FROM debts d
+			JOIN LATERAL (
+				SELECT principal FROM debt_entries 
+				WHERE debt_id = d.id AND entry_date <= $1
+				ORDER BY entry_date DESC, created_at DESC 
+				LIMIT 1
+			) e ON true
+		`, date).Scan(&totalDebt)
+
+		history = append(history, NetWorthDataPoint{
+			Date:        date,
+			TotalAssets: totalAssets,
+			TotalDebt:   totalDebt,
+			NetWorth:    totalAssets - totalDebt,
+		})
 	}
 
-	var totalDebt float64
-	err = h.db.QueryRow(r.Context(), `SELECT COALESCE(SUM(principal), 0) FROM debts`).Scan(&totalDebt)
-	if err != nil {
-		core.WriteError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	netWorth := totalAssets - totalDebt
-	passiveIncome := projectedReturn + projectedDividend
-
-	// Insert or update today's snapshot
-	var s Snapshot
-	err = h.db.QueryRow(r.Context(), `
-		INSERT INTO networth_snapshots (snapshot_date, total_assets, total_debt, net_worth, passive_income)
-		VALUES (CURRENT_DATE, $1, $2, $3, $4)
-		ON CONFLICT (snapshot_date) DO UPDATE SET
-			total_assets = EXCLUDED.total_assets,
-			total_debt = EXCLUDED.total_debt,
-			net_worth = EXCLUDED.net_worth,
-			passive_income = EXCLUDED.passive_income
-		RETURNING id, snapshot_date, total_assets, total_debt, net_worth, passive_income, created_at
-	`, totalAssets, totalDebt, netWorth, passiveIncome).Scan(
-		&s.ID, &s.SnapshotDate, &s.TotalAssets, &s.TotalDebt, &s.NetWorth, &s.PassiveIncome, &s.CreatedAt)
-	if err != nil {
-		core.WriteError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	core.WriteJSON(w, http.StatusCreated, s)
-}
-
-// --- Dashboard ---
-
-func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
-	// Get total assets
-	var totalAssets, projectedReturn, projectedDividend float64
-	err := h.db.QueryRow(r.Context(), `
-		SELECT COALESCE(SUM(current_value), 0), 
-		       COALESCE(SUM(current_value * expected_return / 100), 0),
-		       COALESCE(SUM(current_value * expected_dividend / 100), 0)
-		FROM assets
-	`).Scan(&totalAssets, &projectedReturn, &projectedDividend)
-	if err != nil {
-		core.WriteError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// Get total debt
-	var totalDebt float64
-	err = h.db.QueryRow(r.Context(), `SELECT COALESCE(SUM(principal), 0) FROM debts`).Scan(&totalDebt)
-	if err != nil {
-		core.WriteError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	dashboard := Dashboard{
-		TotalAssets:        totalAssets,
-		TotalDebt:          totalDebt,
-		NetWorth:           totalAssets - totalDebt,
-		ProjectedReturn:    projectedReturn,
-		ProjectedDividend:  projectedDividend,
-		TotalPassiveIncome: projectedReturn + projectedDividend,
-		TargetIncome:       1000000, // 1M SEK
-	}
-
-	dashboard.GapToTarget = dashboard.TargetIncome - dashboard.TotalPassiveIncome
-
-	// Calculate years to target for each scenario
-	if dashboard.TotalPassiveIncome >= dashboard.TargetIncome {
-		dashboard.Scenarios.BestCase = 0
-		dashboard.Scenarios.NeutralCase = 0
-		dashboard.Scenarios.WorstCase = 0
-	} else if dashboard.TotalPassiveIncome > 0 {
-		dashboard.Scenarios.BestCase = math.Log(dashboard.TargetIncome/dashboard.TotalPassiveIncome) / math.Log(1.08)
-		dashboard.Scenarios.NeutralCase = math.Log(dashboard.TargetIncome/dashboard.TotalPassiveIncome) / math.Log(1.05)
-		dashboard.Scenarios.WorstCase = math.Log(dashboard.TargetIncome/dashboard.TotalPassiveIncome) / math.Log(1.02)
-	} else {
-		dashboard.Scenarios.BestCase = -1    // infinite
-		dashboard.Scenarios.NeutralCase = -1 // infinite
-		dashboard.Scenarios.WorstCase = -1   // infinite
-	}
-
-	core.WriteJSON(w, http.StatusOK, dashboard)
+	core.WriteJSON(w, http.StatusOK, history)
 }

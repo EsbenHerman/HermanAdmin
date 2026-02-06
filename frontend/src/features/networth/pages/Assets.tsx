@@ -1,26 +1,38 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchAssets, createAsset, updateAsset, deleteAsset } from '../api'
+import { fetchAssets, createAsset, createAssetEntry, deleteAsset } from '../api'
 import { formatSEK } from '../utils'
-import type { Asset } from '../types'
+import type { AssetWithValue } from '../types'
 
 const CATEGORIES = ['Real Estate', 'Equity - Public', 'Equity - Private', 'Cash', 'Other']
 
-const emptyForm = {
-  category: CATEGORIES[0],
+const today = () => new Date().toISOString().split('T')[0]
+
+const emptyAssetForm = {
+  category: CATEGORIES[1],
+  asset_type: 'manual' as const,
   name: '',
-  current_value: 0,
-  expected_return: 0,
-  expected_dividend: 0,
+  ticker: '',
+  entry_date: today(),
+  units: 1,
+  unit_value: 0,
+  notes: '',
+}
+
+const emptyEntryForm = {
+  entry_date: today(),
+  units: 1,
+  unit_value: 0,
   notes: '',
 }
 
 export default function Assets() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [formData, setFormData] = useState(emptyForm)
+  const [updateAssetId, setUpdateAssetId] = useState<number | null>(null)
+  const [assetForm, setAssetForm] = useState(emptyAssetForm)
+  const [entryForm, setEntryForm] = useState(emptyEntryForm)
 
   const { data: assets, isLoading } = useQuery({
     queryKey: ['assets'],
@@ -32,16 +44,20 @@ export default function Assets() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['history'] })
       closeForm()
     },
   })
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: typeof formData }) => updateAsset(id, data),
+  const addEntryMutation = useMutation({
+    mutationFn: ({ assetId, entry }: { assetId: number; entry: typeof entryForm }) => 
+      createAssetEntry(assetId, entry),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      closeForm()
+      queryClient.invalidateQueries({ queryKey: ['history'] })
+      setUpdateAssetId(null)
+      setEntryForm(emptyEntryForm)
     },
   })
 
@@ -50,44 +66,45 @@ export default function Assets() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['history'] })
     },
   })
 
   const closeForm = () => {
     setShowForm(false)
-    setEditingId(null)
-    setFormData(emptyForm)
+    setAssetForm(emptyAssetForm)
   }
 
-  const openEdit = (asset: Asset) => {
-    setFormData({
-      category: asset.category,
-      name: asset.name,
-      current_value: asset.current_value,
-      expected_return: asset.expected_return,
-      expected_dividend: asset.expected_dividend,
-      notes: asset.notes || '',
+  const openUpdate = (asset: AssetWithValue) => {
+    setEntryForm({
+      entry_date: today(),
+      units: asset.latest_entry?.units || 1,
+      unit_value: asset.latest_entry?.unit_value || 0,
+      notes: '',
     })
-    setEditingId(asset.id)
-    setShowForm(true)
+    setUpdateAssetId(asset.id)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (editingId) {
-      updateMutation.mutate({ id: editingId, data: formData })
-    } else {
-      createMutation.mutate(formData)
+    createMutation.mutate({
+      ...assetForm,
+      ticker: assetForm.asset_type === 'stock' && assetForm.ticker ? assetForm.ticker : undefined,
+    })
+  }
+
+  const handleUpdateSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (updateAssetId) {
+      addEntryMutation.mutate({ assetId: updateAssetId, entry: entryForm })
     }
   }
-
-  const isPending = createMutation.isPending || updateMutation.isPending
 
   if (isLoading) {
     return <div className="text-center py-8">Loading...</div>
   }
 
-  const totalValue = assets?.reduce((sum, a) => sum + a.current_value, 0) ?? 0
+  const totalValue = assets?.reduce((sum, a) => sum + a.total_value, 0) ?? 0
 
   return (
     <div className="space-y-6">
@@ -97,30 +114,23 @@ export default function Assets() {
           <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
         </div>
         <button
-          onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData(emptyForm); }}
+          onClick={() => { setShowForm(!showForm); setUpdateAssetId(null); }}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
         >
-          {showForm && !editingId ? 'Cancel' : '+ Add Asset'}
+          {showForm ? 'Cancel' : '+ Add Asset'}
         </button>
       </div>
 
-      {/* Add/Edit Form */}
+      {/* Add Asset Form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-4">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-medium">{editingId ? 'Edit Asset' : 'Add Asset'}</h2>
-            {editingId && (
-              <button type="button" onClick={closeForm} className="text-gray-500 hover:text-gray-700">
-                ✕
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <form onSubmit={handleCreateSubmit} className="bg-white shadow rounded-lg p-6 space-y-4">
+          <h2 className="text-lg font-medium">Add New Asset</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className="block text-sm font-medium text-gray-700">Category</label>
               <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                value={assetForm.category}
+                onChange={(e) => setAssetForm({ ...assetForm, category: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
                 {CATEGORIES.map((cat) => (
@@ -129,41 +139,69 @@ export default function Assets() {
               </select>
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700">Type</label>
+              <select
+                value={assetForm.asset_type}
+                onChange={(e) => setAssetForm({ ...assetForm, asset_type: e.target.value as 'stock' | 'manual' })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="manual">Manual</option>
+                <option value="stock">Stock</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700">Name</label>
               <input
                 type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={assetForm.name}
+                onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
+                placeholder="e.g., Apple Inc."
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 required
               />
             </div>
+            {assetForm.asset_type === 'stock' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Ticker</label>
+                <input
+                  type="text"
+                  value={assetForm.ticker}
+                  onChange={(e) => setAssetForm({ ...assetForm, ticker: e.target.value.toUpperCase() })}
+                  placeholder="e.g., AAPL"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+            )}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Current Value (SEK)</label>
+              <label className="block text-sm font-medium text-gray-700">Date</label>
               <input
-                type="number"
-                value={formData.current_value}
-                onChange={(e) => setFormData({ ...formData, current_value: parseFloat(e.target.value) || 0 })}
+                type="date"
+                value={assetForm.entry_date}
+                onChange={(e) => setAssetForm({ ...assetForm, entry_date: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Expected Return (%)</label>
+              <label className="block text-sm font-medium text-gray-700">
+                {assetForm.asset_type === 'stock' ? 'Shares' : 'Units'}
+              </label>
               <input
                 type="number"
-                step="0.1"
-                value={formData.expected_return}
-                onChange={(e) => setFormData({ ...formData, expected_return: parseFloat(e.target.value) || 0 })}
+                step="0.000001"
+                value={assetForm.units}
+                onChange={(e) => setAssetForm({ ...assetForm, units: parseFloat(e.target.value) || 0 })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Expected Dividend (%)</label>
+              <label className="block text-sm font-medium text-gray-700">
+                {assetForm.asset_type === 'stock' ? 'Price per Share (SEK)' : 'Value (SEK)'}
+              </label>
               <input
                 type="number"
-                step="0.1"
-                value={formData.expected_dividend}
-                onChange={(e) => setFormData({ ...formData, expected_dividend: parseFloat(e.target.value) || 0 })}
+                step="0.01"
+                value={assetForm.unit_value}
+                onChange={(e) => setAssetForm({ ...assetForm, unit_value: parseFloat(e.target.value) || 0 })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
@@ -171,29 +209,23 @@ export default function Assets() {
               <label className="block text-sm font-medium text-gray-700">Notes</label>
               <input
                 type="text"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                value={assetForm.notes}
+                onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-sm text-gray-500">
+              Total: {formatSEK(assetForm.units * assetForm.unit_value)}
+            </p>
             <button
               type="submit"
-              disabled={isPending}
+              disabled={createMutation.isPending}
               className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
             >
-              {isPending ? 'Saving...' : editingId ? 'Update Asset' : 'Save Asset'}
+              {createMutation.isPending ? 'Saving...' : 'Create Asset'}
             </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={closeForm}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            )}
           </div>
         </form>
       )}
@@ -208,41 +240,120 @@ export default function Assets() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Return %</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Dividend %</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Value</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">As Of</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {assets?.map((asset: Asset) => (
-              <tr key={asset.id} className={editingId === asset.id ? 'bg-blue-50' : ''}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{asset.category}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{asset.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatSEK(asset.current_value)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{asset.expected_return}%</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{asset.expected_dividend}%</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-3">
-                  <button
-                    onClick={() => openEdit(asset)}
-                    className="text-blue-600 hover:text-blue-900"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteMutation.mutate(asset.id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
+            {assets?.map((asset: AssetWithValue) => (
+              <>
+                <tr key={asset.id} className={updateAssetId === asset.id ? 'bg-blue-50' : ''}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {asset.name}
+                    {asset.ticker && <span className="ml-2 text-gray-500">({asset.ticker})</span>}
+                    {asset.asset_type === 'stock' && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Stock</span>}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{asset.category}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                    {asset.latest_entry?.units.toLocaleString() || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                    {asset.latest_entry ? formatSEK(asset.latest_entry.unit_value) : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+                    {formatSEK(asset.total_value)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                    {asset.latest_entry?.entry_date || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-3">
+                    <button
+                      onClick={() => openUpdate(asset)}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Update
+                    </button>
+                    <button
+                      onClick={() => deleteMutation.mutate(asset.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+                {updateAssetId === asset.id && (
+                  <tr key={`${asset.id}-update`} className="bg-blue-50">
+                    <td colSpan={7} className="px-6 py-4">
+                      <form onSubmit={handleUpdateSubmit} className="flex items-end gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700">Date</label>
+                          <input
+                            type="date"
+                            value={entryForm.entry_date}
+                            onChange={(e) => setEntryForm({ ...entryForm, entry_date: e.target.value })}
+                            className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700">Units</label>
+                          <input
+                            type="number"
+                            step="0.000001"
+                            value={entryForm.units}
+                            onChange={(e) => setEntryForm({ ...entryForm, units: parseFloat(e.target.value) || 0 })}
+                            className="mt-1 block w-28 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700">Unit Value (SEK)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={entryForm.unit_value}
+                            onChange={(e) => setEntryForm({ ...entryForm, unit_value: parseFloat(e.target.value) || 0 })}
+                            className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700">Notes</label>
+                          <input
+                            type="text"
+                            value={entryForm.notes}
+                            onChange={(e) => setEntryForm({ ...entryForm, notes: e.target.value })}
+                            className="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                          />
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          = {formatSEK(entryForm.units * entryForm.unit_value)}
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={addEntryMutation.isPending}
+                          className="bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 disabled:opacity-50 text-sm"
+                        >
+                          {addEntryMutation.isPending ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUpdateAssetId(null)}
+                          className="text-gray-500 hover:text-gray-700 text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
             {(!assets || assets.length === 0) && (
               <tr>
-                <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
                   No assets yet. Add your first asset above.
                 </td>
               </tr>

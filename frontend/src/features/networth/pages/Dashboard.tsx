@@ -1,33 +1,24 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { fetchNetWorthDashboard, fetchSnapshots, createSnapshot, fetchAssets } from '../api'
-import { formatSEK, formatYears } from '../utils'
+import { fetchNetWorthDashboard, fetchNetWorthHistory, fetchAssets } from '../api'
+import { formatSEK } from '../utils'
 import NetWorthChart from '../components/NetWorthChart'
 import AllocationChart from '../components/AllocationChart'
 
 export default function Dashboard() {
-  const queryClient = useQueryClient()
-
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard'],
-    queryFn: fetchNetWorthDashboard,
+    queryFn: () => fetchNetWorthDashboard(),
   })
 
-  const { data: snapshots } = useQuery({
-    queryKey: ['snapshots'],
-    queryFn: fetchSnapshots,
+  const { data: history } = useQuery({
+    queryKey: ['history'],
+    queryFn: fetchNetWorthHistory,
   })
 
   const { data: assets } = useQuery({
     queryKey: ['assets'],
     queryFn: fetchAssets,
-  })
-
-  const snapshotMutation = useMutation({
-    mutationFn: createSnapshot,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['snapshots'] })
-    },
   })
 
   if (isLoading) {
@@ -44,20 +35,14 @@ export default function Dashboard() {
 
   if (!data) return null
 
-  const progressPercent = Math.min((data.total_passive_income / data.target_income) * 100, 100)
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Net Worth Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Net Worth Dashboard</h1>
+          <p className="text-sm text-gray-500">As of {data.as_of_date}</p>
+        </div>
         <div className="flex space-x-3">
-          <button
-            onClick={() => snapshotMutation.mutate()}
-            disabled={snapshotMutation.isPending}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-          >
-            {snapshotMutation.isPending ? '📸 Saving...' : '📸 Save Snapshot'}
-          </button>
           <Link
             to="/networth/assets"
             className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -74,7 +59,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -122,30 +107,14 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <span className="text-2xl">🎯</span>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Passive Income</dt>
-                  <dd className="text-lg font-semibold text-gray-900">{formatSEK(data.total_passive_income)}/yr</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Net Worth History */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Net Worth History</h2>
-          <NetWorthChart snapshots={snapshots || []} />
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Net Worth Over Time</h2>
+          <NetWorthChart history={history || []} />
         </div>
 
         {/* Asset Allocation */}
@@ -155,64 +124,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Progress to Target */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Progress to 1M SEK/year</h2>
-        <div className="relative pt-1">
-          <div className="flex mb-2 items-center justify-between">
-            <div>
-              <span className="text-xs font-semibold inline-block text-blue-600">
-                {progressPercent.toFixed(1)}%
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="text-xs font-semibold inline-block text-gray-600">
-                Gap: {formatSEK(data.gap_to_target)}
-              </span>
-            </div>
-          </div>
-          <div className="overflow-hidden h-4 text-xs flex rounded bg-blue-100">
-            <div
-              style={{ width: `${progressPercent}%` }}
-              className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500"
-            />
-          </div>
+      {/* Category Breakdown */}
+      {Object.keys(data.by_category).length > 0 && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">By Category</h2>
+          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {Object.entries(data.by_category).map(([category, value]) => (
+              <div key={category} className="border-l-4 border-blue-500 pl-4">
+                <dt className="text-sm font-medium text-gray-500">{category}</dt>
+                <dd className="mt-1 text-lg font-semibold text-gray-900">{formatSEK(value)}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-      </div>
-
-      {/* Scenario Projections */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Time to Target</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="border rounded-lg p-4 bg-green-50">
-            <h3 className="text-sm font-medium text-green-800">Best Case (8% growth)</h3>
-            <p className="mt-2 text-2xl font-bold text-green-900">{formatYears(data.scenarios.best_case)}</p>
-          </div>
-          <div className="border rounded-lg p-4 bg-yellow-50">
-            <h3 className="text-sm font-medium text-yellow-800">Neutral Case (5% growth)</h3>
-            <p className="mt-2 text-2xl font-bold text-yellow-900">{formatYears(data.scenarios.neutral_case)}</p>
-          </div>
-          <div className="border rounded-lg p-4 bg-red-50">
-            <h3 className="text-sm font-medium text-red-800">Worst Case (2% growth)</h3>
-            <p className="mt-2 text-2xl font-bold text-red-900">{formatYears(data.scenarios.worst_case)}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Income Breakdown */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Passive Income Breakdown</h2>
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-          <div className="border-l-4 border-blue-500 pl-4">
-            <dt className="text-sm font-medium text-gray-500">Projected Returns</dt>
-            <dd className="mt-1 text-xl font-semibold text-gray-900">{formatSEK(data.projected_return)}/yr</dd>
-          </div>
-          <div className="border-l-4 border-green-500 pl-4">
-            <dt className="text-sm font-medium text-gray-500">Projected Dividends</dt>
-            <dd className="mt-1 text-xl font-semibold text-gray-900">{formatSEK(data.projected_dividend)}/yr</dd>
-          </div>
-        </dl>
-      </div>
+      )}
     </div>
   )
 }

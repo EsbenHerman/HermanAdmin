@@ -13,22 +13,22 @@ func RegisterRoutes(r chi.Router, db *pgxpool.Pool) {
 		r.Get("/", h.ListAssets)
 		r.Post("/", h.CreateAsset)
 		r.Get("/{id}", h.GetAsset)
-		r.Put("/{id}", h.UpdateAsset)
 		r.Delete("/{id}", h.DeleteAsset)
+		// Asset entries (time-series)
+		r.Get("/{id}/entries", h.ListAssetEntries)
+		r.Post("/{id}/entries", h.CreateAssetEntry)
 	})
 
 	r.Route("/debts", func(r chi.Router) {
 		r.Get("/", h.ListDebts)
 		r.Post("/", h.CreateDebt)
 		r.Get("/{id}", h.GetDebt)
-		r.Put("/{id}", h.UpdateDebt)
 		r.Delete("/{id}", h.DeleteDebt)
+		// Debt entries (time-series)
+		r.Get("/{id}/entries", h.ListDebtEntries)
+		r.Post("/{id}/entries", h.CreateDebtEntry)
 	})
 
 	r.Get("/dashboard/networth", h.GetDashboard)
-
-	r.Route("/snapshots", func(r chi.Router) {
-		r.Get("/", h.ListSnapshots)
-		r.Post("/", h.CreateSnapshot)
-	})
+	r.Get("/dashboard/history", h.GetHistory)
 }

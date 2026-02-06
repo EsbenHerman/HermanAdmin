@@ -1,25 +1,25 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import type { Snapshot } from '../types'
+import type { NetWorthDataPoint } from '../types'
 import { formatSEK } from '../utils'
 
 interface Props {
-  snapshots: Snapshot[]
+  history: NetWorthDataPoint[]
 }
 
-export default function NetWorthChart({ snapshots }: Props) {
-  if (!snapshots || snapshots.length === 0) {
+export default function NetWorthChart({ history }: Props) {
+  if (!history || history.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No historical data yet. Click "Save Snapshot" to start tracking.
+        No historical data yet. Add entries with different dates to see the trend.
       </div>
     )
   }
 
-  const data = snapshots.map(s => ({
-    date: new Date(s.snapshot_date).toLocaleDateString('sv-SE'),
-    netWorth: s.net_worth,
-    assets: s.total_assets,
-    debt: s.total_debt,
+  const data = history.map(h => ({
+    date: new Date(h.date).toLocaleDateString('sv-SE'),
+    netWorth: h.net_worth,
+    assets: h.total_assets,
+    debt: h.total_debt,
   }))
 
   return (

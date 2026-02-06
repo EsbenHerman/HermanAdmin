@@ -1,9 +1,9 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
-import type { Asset } from '../types'
+import type { AssetWithValue } from '../types'
 import { formatSEK } from '../utils'
 
 interface Props {
-  assets: Asset[]
+  assets: AssetWithValue[]
 }
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4']
@@ -20,15 +20,22 @@ export default function AllocationChart({ assets }: Props) {
   // Group by category
   const byCategory = assets.reduce((acc, asset) => {
     const cat = asset.category || 'Other'
-    acc[cat] = (acc[cat] || 0) + asset.current_value
+    acc[cat] = (acc[cat] || 0) + asset.total_value
     return acc
   }, {} as Record<string, number>)
 
   const data = Object.entries(byCategory)
+    .filter(([_, value]) => value > 0)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
 
-  const total = data.reduce((sum, d) => sum + d.value, 0)
+  if (data.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        No asset values recorded yet.
+      </div>
+    )
+  }
 
   return (
     <ResponsiveContainer width="100%" height={300}>
