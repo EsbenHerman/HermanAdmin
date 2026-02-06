@@ -43,6 +43,16 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			UNIQUE(year)
 		)`,
+		`CREATE TABLE IF NOT EXISTS networth_snapshots (
+			id BIGSERIAL PRIMARY KEY,
+			snapshot_date DATE NOT NULL,
+			total_assets DECIMAL(15, 2) NOT NULL DEFAULT 0,
+			total_debt DECIMAL(15, 2) NOT NULL DEFAULT 0,
+			net_worth DECIMAL(15, 2) NOT NULL DEFAULT 0,
+			passive_income DECIMAL(15, 2) NOT NULL DEFAULT 0,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			UNIQUE(snapshot_date)
+		)`,
 	}
 
 	for _, migration := range migrations {

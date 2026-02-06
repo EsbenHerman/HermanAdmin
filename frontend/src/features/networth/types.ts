@@ -22,6 +22,16 @@ export interface Debt {
   updated_at: string
 }
 
+export interface Snapshot {
+  id: number
+  snapshot_date: string
+  total_assets: number
+  total_debt: number
+  net_worth: number
+  passive_income: number
+  created_at: string
+}
+
 export interface NetWorthDashboard {
   total_assets: number
   total_debt: number

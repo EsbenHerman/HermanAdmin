@@ -1,11 +1,33 @@
-import { useQuery } from '@tanstack/react-query'
-import { fetchNetWorthDashboard } from '../api'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import { fetchNetWorthDashboard, fetchSnapshots, createSnapshot, fetchAssets } from '../api'
 import { formatSEK, formatYears } from '../utils'
+import NetWorthChart from '../components/NetWorthChart'
+import AllocationChart from '../components/AllocationChart'
 
 export default function Dashboard() {
+  const queryClient = useQueryClient()
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard'],
     queryFn: fetchNetWorthDashboard,
+  })
+
+  const { data: snapshots } = useQuery({
+    queryKey: ['snapshots'],
+    queryFn: fetchSnapshots,
+  })
+
+  const { data: assets } = useQuery({
+    queryKey: ['assets'],
+    queryFn: fetchAssets,
+  })
+
+  const snapshotMutation = useMutation({
+    mutationFn: createSnapshot,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['snapshots'] })
+    },
   })
 
   if (isLoading) {
@@ -26,7 +48,30 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Net Worth Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Net Worth Dashboard</h1>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => snapshotMutation.mutate()}
+            disabled={snapshotMutation.isPending}
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          >
+            {snapshotMutation.isPending ? '📸 Saving...' : '📸 Save Snapshot'}
+          </button>
+          <Link
+            to="/networth/assets"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            📈 Assets
+          </Link>
+          <Link
+            to="/networth/debts"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            📉 Debts
+          </Link>
+        </div>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -92,6 +137,21 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Net Worth History */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Net Worth History</h2>
+          <NetWorthChart snapshots={snapshots || []} />
+        </div>
+
+        {/* Asset Allocation */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Asset Allocation</h2>
+          <AllocationChart assets={assets || []} />
         </div>
       </div>
 

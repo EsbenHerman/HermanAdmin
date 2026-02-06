@@ -26,6 +26,17 @@ type Debt struct {
 	UpdatedAt      string  `json:"updated_at"`
 }
 
+// Snapshot represents a point-in-time record of net worth
+type Snapshot struct {
+	ID            int64   `json:"id"`
+	SnapshotDate  string  `json:"snapshot_date"`
+	TotalAssets   float64 `json:"total_assets"`
+	TotalDebt     float64 `json:"total_debt"`
+	NetWorth      float64 `json:"net_worth"`
+	PassiveIncome float64 `json:"passive_income"`
+	CreatedAt     string  `json:"created_at"`
+}
+
 // Dashboard represents the net worth dashboard summary
 type Dashboard struct {
 	TotalAssets        float64 `json:"total_assets"`

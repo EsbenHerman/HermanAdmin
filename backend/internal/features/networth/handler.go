@@ -239,6 +239,78 @@ func (h *Handler) DeleteDebt(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// --- Snapshots ---
+
+func (h *Handler) ListSnapshots(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.db.Query(r.Context(), `
+		SELECT id, snapshot_date, total_assets, total_debt, net_worth, passive_income, created_at
+		FROM networth_snapshots ORDER BY snapshot_date ASC
+	`)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var snapshots []Snapshot
+	for rows.Next() {
+		var s Snapshot
+		err := rows.Scan(&s.ID, &s.SnapshotDate, &s.TotalAssets, &s.TotalDebt, &s.NetWorth, &s.PassiveIncome, &s.CreatedAt)
+		if err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		snapshots = append(snapshots, s)
+	}
+
+	core.WriteJSON(w, http.StatusOK, snapshots)
+}
+
+func (h *Handler) CreateSnapshot(w http.ResponseWriter, r *http.Request) {
+	// Calculate current values
+	var totalAssets, projectedReturn, projectedDividend float64
+	err := h.db.QueryRow(r.Context(), `
+		SELECT COALESCE(SUM(current_value), 0), 
+		       COALESCE(SUM(current_value * expected_return / 100), 0),
+		       COALESCE(SUM(current_value * expected_dividend / 100), 0)
+		FROM assets
+	`).Scan(&totalAssets, &projectedReturn, &projectedDividend)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var totalDebt float64
+	err = h.db.QueryRow(r.Context(), `SELECT COALESCE(SUM(principal), 0) FROM debts`).Scan(&totalDebt)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	netWorth := totalAssets - totalDebt
+	passiveIncome := projectedReturn + projectedDividend
+
+	// Insert or update today's snapshot
+	var s Snapshot
+	err = h.db.QueryRow(r.Context(), `
+		INSERT INTO networth_snapshots (snapshot_date, total_assets, total_debt, net_worth, passive_income)
+		VALUES (CURRENT_DATE, $1, $2, $3, $4)
+		ON CONFLICT (snapshot_date) DO UPDATE SET
+			total_assets = EXCLUDED.total_assets,
+			total_debt = EXCLUDED.total_debt,
+			net_worth = EXCLUDED.net_worth,
+			passive_income = EXCLUDED.passive_income
+		RETURNING id, snapshot_date, total_assets, total_debt, net_worth, passive_income, created_at
+	`, totalAssets, totalDebt, netWorth, passiveIncome).Scan(
+		&s.ID, &s.SnapshotDate, &s.TotalAssets, &s.TotalDebt, &s.NetWorth, &s.PassiveIncome, &s.CreatedAt)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	core.WriteJSON(w, http.StatusCreated, s)
+}
+
 // --- Dashboard ---
 
 func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {

@@ -26,4 +26,9 @@ func RegisterRoutes(r chi.Router, db *pgxpool.Pool) {
 	})
 
 	r.Get("/dashboard/networth", h.GetDashboard)
+
+	r.Route("/snapshots", func(r chi.Router) {
+		r.Get("/", h.ListSnapshots)
+		r.Post("/", h.CreateSnapshot)
+	})
 }

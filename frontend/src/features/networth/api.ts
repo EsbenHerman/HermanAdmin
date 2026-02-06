@@ -1,5 +1,5 @@
 import { API_BASE, handleResponse } from '../../shared/api/client'
-import type { Asset, Debt, NetWorthDashboard } from './types'
+import type { Asset, Debt, NetWorthDashboard, Snapshot } from './types'
 
 // Assets
 export const fetchAssets = (): Promise<Asset[]> =>
@@ -50,3 +50,10 @@ export const deleteDebt = (id: number): Promise<void> =>
 // Dashboard
 export const fetchNetWorthDashboard = (): Promise<NetWorthDashboard> =>
   fetch(`${API_BASE}/dashboard/networth`).then(r => handleResponse(r))
+
+// Snapshots
+export const fetchSnapshots = (): Promise<Snapshot[]> =>
+  fetch(`${API_BASE}/snapshots`).then(r => handleResponse(r))
+
+export const createSnapshot = (): Promise<Snapshot> =>
+  fetch(`${API_BASE}/snapshots`, { method: 'POST' }).then(r => handleResponse(r))

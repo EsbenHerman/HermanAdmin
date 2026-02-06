@@ -1,22 +1,26 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchAssets, createAsset, deleteAsset } from '../api'
+import { fetchAssets, createAsset, updateAsset, deleteAsset } from '../api'
 import { formatSEK } from '../utils'
 import type { Asset } from '../types'
 
 const CATEGORIES = ['Real Estate', 'Equity - Public', 'Equity - Private', 'Cash', 'Other']
 
+const emptyForm = {
+  category: CATEGORIES[0],
+  name: '',
+  current_value: 0,
+  expected_return: 0,
+  expected_dividend: 0,
+  notes: '',
+}
+
 export default function Assets() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({
-    category: CATEGORIES[0],
-    name: '',
-    current_value: 0,
-    expected_return: 0,
-    expected_dividend: 0,
-    notes: '',
-  })
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [formData, setFormData] = useState(emptyForm)
 
   const { data: assets, isLoading } = useQuery({
     queryKey: ['assets'],
@@ -28,15 +32,16 @@ export default function Assets() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      setShowForm(false)
-      setFormData({
-        category: CATEGORIES[0],
-        name: '',
-        current_value: 0,
-        expected_return: 0,
-        expected_dividend: 0,
-        notes: '',
-      })
+      closeForm()
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: typeof formData }) => updateAsset(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      closeForm()
     },
   })
 
@@ -48,10 +53,35 @@ export default function Assets() {
     },
   })
 
+  const closeForm = () => {
+    setShowForm(false)
+    setEditingId(null)
+    setFormData(emptyForm)
+  }
+
+  const openEdit = (asset: Asset) => {
+    setFormData({
+      category: asset.category,
+      name: asset.name,
+      current_value: asset.current_value,
+      expected_return: asset.expected_return,
+      expected_dividend: asset.expected_dividend,
+      notes: asset.notes || '',
+    })
+    setEditingId(asset.id)
+    setShowForm(true)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    createMutation.mutate(formData)
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, data: formData })
+    } else {
+      createMutation.mutate(formData)
+    }
   }
+
+  const isPending = createMutation.isPending || updateMutation.isPending
 
   if (isLoading) {
     return <div className="text-center py-8">Loading...</div>
@@ -62,18 +92,29 @@ export default function Assets() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
+        <div>
+          <Link to="/networth" className="text-sm text-blue-600 hover:text-blue-800">← Net Worth</Link>
+          <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
+        </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData(emptyForm); }}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
         >
-          {showForm ? 'Cancel' : '+ Add Asset'}
+          {showForm && !editingId ? 'Cancel' : '+ Add Asset'}
         </button>
       </div>
 
-      {/* Add Form */}
+      {/* Add/Edit Form */}
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-4">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-lg font-medium">{editingId ? 'Edit Asset' : 'Add Asset'}</h2>
+            {editingId && (
+              <button type="button" onClick={closeForm} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700">Category</label>
@@ -136,13 +177,24 @@ export default function Assets() {
               />
             </div>
           </div>
-          <button
-            type="submit"
-            disabled={createMutation.isPending}
-            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-          >
-            {createMutation.isPending ? 'Saving...' : 'Save Asset'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={isPending}
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
+            >
+              {isPending ? 'Saving...' : editingId ? 'Update Asset' : 'Save Asset'}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={closeForm}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
       )}
 
@@ -166,13 +218,19 @@ export default function Assets() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {assets?.map((asset: Asset) => (
-              <tr key={asset.id}>
+              <tr key={asset.id} className={editingId === asset.id ? 'bg-blue-50' : ''}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{asset.category}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{asset.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatSEK(asset.current_value)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{asset.expected_return}%</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{asset.expected_dividend}%</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-3">
+                  <button
+                    onClick={() => openEdit(asset)}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => deleteMutation.mutate(asset.id)}
                     className="text-red-600 hover:text-red-900"
