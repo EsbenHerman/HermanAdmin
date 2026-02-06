@@ -47,13 +47,13 @@ export default function Dashboard() {
         </div>
         <div className="flex space-x-3">
           <Link
-            to="/networth/assets"
+            to="/financial/assets"
             className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             📈 Assets
           </Link>
           <Link
-            to="/networth/debts"
+            to="/financial/debts"
             className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             📉 Debts

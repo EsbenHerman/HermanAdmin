@@ -1,4 +1,4 @@
-package networth
+package financial
 
 import (
 	"github.com/go-chi/chi/v5"
@@ -19,6 +19,10 @@ func RegisterRoutes(r chi.Router, db *pgxpool.Pool) {
 		r.Post("/{id}/entries", h.CreateAssetEntry)
 		r.Put("/{id}/entries/{entryId}", h.UpdateAssetEntry)
 		r.Delete("/{id}/entries/{entryId}", h.DeleteAssetEntry)
+		// Asset prices (for stocks - auto or manual)
+		r.Get("/{id}/prices", h.ListAssetPrices)
+		r.Post("/{id}/prices", h.CreateAssetPrice)
+		r.Post("/{id}/prices/fetch", h.FetchAssetPrice)
 	})
 
 	r.Route("/debts", func(r chi.Router) {
@@ -33,9 +37,12 @@ func RegisterRoutes(r chi.Router, db *pgxpool.Pool) {
 		r.Delete("/{id}/entries/{entryId}", h.DeleteDebtEntry)
 	})
 
-	r.Get("/dashboard/networth", h.GetDashboard)
+	r.Get("/dashboard/financial", h.GetDashboard)
 	r.Get("/dashboard/history", h.GetHistory)
 	r.Get("/dashboard/history/detailed", h.GetDetailedHistory)
+
+	// Price updates (for cron job)
+	r.Post("/prices/update", h.UpdateAllPrices)
 
 	r.Route("/currencies", func(r chi.Router) {
 		r.Get("/", h.ListCurrencyRates)

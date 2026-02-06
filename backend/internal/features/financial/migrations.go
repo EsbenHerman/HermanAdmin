@@ -1,4 +1,4 @@
-package networth
+package financial
 
 import (
 	"context"
@@ -9,13 +9,7 @@ import (
 // Migrate runs the net worth feature database migrations
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	migrations := []string{
-		// Drop old tables if they exist (clean slate for new schema)
-		`DROP TABLE IF EXISTS networth_snapshots CASCADE`,
-		`DROP TABLE IF EXISTS salary_entries CASCADE`,
-		`DROP TABLE IF EXISTS asset_entries CASCADE`,
-		`DROP TABLE IF EXISTS debt_entries CASCADE`,
-		`DROP TABLE IF EXISTS assets CASCADE`,
-		`DROP TABLE IF EXISTS debts CASCADE`,
+		// Note: Removed destructive DROP TABLE statements - use proper migration system for schema changes
 
 		// Assets: metadata only
 		`CREATE TABLE IF NOT EXISTS assets (
@@ -80,6 +74,34 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 			('CNY', 1.45),
 			('GBP', 13.50)
 		ON CONFLICT (currency) DO NOTHING`,
+
+		// Asset prices: separate price history (for auto-updates from Yahoo, etc.)
+		`CREATE TABLE IF NOT EXISTS asset_prices (
+			id BIGSERIAL PRIMARY KEY,
+			asset_id BIGINT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+			price_date DATE NOT NULL,
+			unit_value DECIMAL(15, 4) NOT NULL,
+			source VARCHAR(50) NOT NULL DEFAULT 'manual',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			UNIQUE(asset_id, price_date)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_asset_prices_asset_date ON asset_prices(asset_id, price_date DESC)`,
+
+		// Migrate existing unit_value data from asset_entries to asset_prices (if column exists)
+		`DO $$
+		BEGIN
+			IF EXISTS (SELECT 1 FROM information_schema.columns 
+			           WHERE table_name = 'asset_entries' AND column_name = 'unit_value') THEN
+				INSERT INTO asset_prices (asset_id, price_date, unit_value, source)
+				SELECT asset_id, entry_date, unit_value, 'manual'
+				FROM asset_entries
+				WHERE unit_value > 0
+				ON CONFLICT (asset_id, price_date) DO NOTHING;
+			END IF;
+		END $$`,
+
+		// Drop unit_value column from asset_entries (no longer needed)
+		`ALTER TABLE asset_entries DROP COLUMN IF EXISTS unit_value`,
 	}
 
 	for _, migration := range migrations {

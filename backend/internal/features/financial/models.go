@@ -1,4 +1,4 @@
-package networth
+package financial
 
 import "time"
 
@@ -19,9 +19,29 @@ type AssetEntry struct {
 	AssetID   int64     `json:"asset_id"`
 	EntryDate string    `json:"entry_date"` // YYYY-MM-DD
 	Units     float64   `json:"units"`      // shares for stocks, 1 for manual
-	UnitValue float64   `json:"unit_value"` // price per unit
+	UnitValue float64   `json:"unit_value"` // price per unit (for manual assets or fallback)
 	Notes     string    `json:"notes,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// AssetPrice represents a historical price point for an asset (from API or manual)
+type AssetPrice struct {
+	ID        int64     `json:"id"`
+	AssetID   int64     `json:"asset_id"`
+	PriceDate string    `json:"price_date"` // YYYY-MM-DD
+	UnitValue float64   `json:"unit_value"` // price per unit in asset's currency
+	Source    string    `json:"source"`     // 'manual', 'yahoo', etc.
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// PriceUpdateResult represents the result of updating a single asset's price
+type PriceUpdateResult struct {
+	AssetID  int64   `json:"asset_id"`
+	Ticker   string  `json:"ticker"`
+	Price    float64 `json:"price,omitempty"`
+	Currency string  `json:"currency,omitempty"`
+	Success  bool    `json:"success"`
+	Error    string  `json:"error,omitempty"`
 }
 
 // AssetWithValue combines asset metadata with its current/latest value

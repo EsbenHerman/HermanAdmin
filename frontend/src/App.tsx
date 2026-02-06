@@ -1,5 +1,5 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
-import { Dashboard as NetWorthDashboard, Assets, Debts } from './features/networth'
+import { Dashboard as NetWorthDashboard, Assets, Debts } from './features/financial'
 import Dashboard from './pages/Dashboard'
 
 function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
@@ -33,7 +33,7 @@ function App() {
               </Link>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <NavLink to="/">Home</NavLink>
-                <NavLink to="/networth">Net Worth</NavLink>
+                <NavLink to="/financial">Financial</NavLink>
               </div>
             </div>
           </div>
@@ -44,9 +44,9 @@ function App() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/networth" element={<NetWorthDashboard />} />
-          <Route path="/networth/assets" element={<Assets />} />
-          <Route path="/networth/debts" element={<Debts />} />
+          <Route path="/financial" element={<NetWorthDashboard />} />
+          <Route path="/financial/assets" element={<Assets />} />
+          <Route path="/financial/debts" element={<Debts />} />
         </Routes>
       </main>
     </div>

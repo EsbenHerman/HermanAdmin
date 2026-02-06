@@ -1,4 +1,4 @@
-package networth
+package financial
 
 import (
 	"encoding/json"
@@ -12,21 +12,26 @@ import (
 )
 
 type Handler struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	prices *PriceService
 }
 
 func NewHandler(db *pgxpool.Pool) *Handler {
-	return &Handler{db: db}
+	return &Handler{
+		db:     db,
+		prices: NewPriceService(db),
+	}
 }
 
 // --- Assets ---
 
 func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
-	// Get all assets with their latest entry
+	// Get all assets with their latest entry and latest price
 	rows, err := h.db.Query(r.Context(), `
 		SELECT 
 			a.id, a.category, a.asset_type, a.name, a.ticker, a.currency, a.created_at,
-			e.id, e.entry_date, e.units, e.unit_value, e.notes, e.created_at
+			e.id, e.entry_date, e.units, e.notes, e.created_at,
+			p.unit_value
 		FROM assets a
 		LEFT JOIN LATERAL (
 			SELECT * FROM asset_entries 
@@ -34,6 +39,12 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 			ORDER BY entry_date DESC, created_at DESC 
 			LIMIT 1
 		) e ON true
+		LEFT JOIN LATERAL (
+			SELECT unit_value FROM asset_prices 
+			WHERE asset_id = a.id 
+			ORDER BY price_date DESC, created_at DESC 
+			LIMIT 1
+		) p ON true
 		ORDER BY a.category, a.name
 	`)
 	if err != nil {
@@ -46,18 +57,25 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var a AssetWithValue
 		var entryID *int64
-		var entryUnits, entryUnitValue *float64
+		var entryUnits *float64
 		var entryDate *time.Time
 		var entryNotes *string
 		var entryCreatedAt *time.Time
+		var latestPrice *float64
 
 		err := rows.Scan(
 			&a.ID, &a.Category, &a.AssetType, &a.Name, &a.Ticker, &a.Currency, &a.CreatedAt,
-			&entryID, &entryDate, &entryUnits, &entryUnitValue, &entryNotes, &entryCreatedAt,
+			&entryID, &entryDate, &entryUnits, &entryNotes, &entryCreatedAt,
+			&latestPrice,
 		)
 		if err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
+		}
+
+		unitValue := 0.0
+		if latestPrice != nil {
+			unitValue = *latestPrice
 		}
 
 		if entryID != nil {
@@ -66,11 +84,11 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 				AssetID:   a.ID,
 				EntryDate: entryDate.Format("2006-01-02"),
 				Units:     *entryUnits,
-				UnitValue: *entryUnitValue,
+				UnitValue: unitValue,
 				Notes:     *entryNotes,
 				CreatedAt: *entryCreatedAt,
 			}
-			a.TotalValue = a.LatestEntry.Units * a.LatestEntry.UnitValue
+			a.TotalValue = a.LatestEntry.Units * unitValue
 		}
 
 		assets = append(assets, a)
@@ -130,21 +148,35 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Insert initial entry
+	// Insert initial entry (units only)
 	var entry AssetEntry
 	var entryDate time.Time
 	err = tx.QueryRow(r.Context(), `
-		INSERT INTO asset_entries (asset_id, entry_date, units, unit_value, notes)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, asset_id, entry_date, units, unit_value, notes, created_at
-	`, asset.ID, req.EntryDate, req.Units, req.UnitValue, req.Notes).Scan(
-		&entry.ID, &entry.AssetID, &entryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
+		INSERT INTO asset_entries (asset_id, entry_date, units, notes)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, asset_id, entry_date, units, notes, created_at
+	`, asset.ID, req.EntryDate, req.Units, req.Notes).Scan(
+		&entry.ID, &entry.AssetID, &entryDate, &entry.Units, &entry.Notes, &entry.CreatedAt,
 	)
 	entry.EntryDate = entryDate.Format("2006-01-02")
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// Insert initial price
+	if req.UnitValue > 0 {
+		_, err = tx.Exec(r.Context(), `
+			INSERT INTO asset_prices (asset_id, price_date, unit_value, source)
+			VALUES ($1, $2, $3, 'manual')
+			ON CONFLICT (asset_id, price_date) DO UPDATE SET unit_value = $3
+		`, asset.ID, req.EntryDate, req.UnitValue)
+		if err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	entry.UnitValue = req.UnitValue
 
 	if err := tx.Commit(r.Context()); err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -206,10 +238,12 @@ func (h *Handler) ListAssetEntries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := h.db.Query(r.Context(), `
-		SELECT id, asset_id, entry_date, units, unit_value, notes, created_at
-		FROM asset_entries
-		WHERE asset_id = $1
-		ORDER BY entry_date DESC, created_at DESC
+		SELECT e.id, e.asset_id, e.entry_date, e.units, e.notes, e.created_at,
+			COALESCE(p.unit_value, 0) as unit_value
+		FROM asset_entries e
+		LEFT JOIN asset_prices p ON p.asset_id = e.asset_id AND p.price_date = e.entry_date
+		WHERE e.asset_id = $1
+		ORDER BY e.entry_date DESC, e.created_at DESC
 	`, assetID)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
@@ -221,7 +255,7 @@ func (h *Handler) ListAssetEntries(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var e AssetEntry
 		var entryDate time.Time
-		if err := rows.Scan(&e.ID, &e.AssetID, &entryDate, &e.Units, &e.UnitValue, &e.Notes, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.AssetID, &entryDate, &e.Units, &e.Notes, &e.CreatedAt, &e.UnitValue); err != nil {
 			core.WriteError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -256,20 +290,46 @@ func (h *Handler) CreateAssetEntry(w http.ResponseWriter, r *http.Request) {
 		req.EntryDate = time.Now().Format("2006-01-02")
 	}
 
+	tx, err := h.db.Begin(r.Context())
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback(r.Context())
+
 	var entry AssetEntry
 	var entryDate time.Time
-	err = h.db.QueryRow(r.Context(), `
-		INSERT INTO asset_entries (asset_id, entry_date, units, unit_value, notes)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, asset_id, entry_date, units, unit_value, notes, created_at
-	`, assetID, req.EntryDate, req.Units, req.UnitValue, req.Notes).Scan(
-		&entry.ID, &entry.AssetID, &entryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
+	err = tx.QueryRow(r.Context(), `
+		INSERT INTO asset_entries (asset_id, entry_date, units, notes)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, asset_id, entry_date, units, notes, created_at
+	`, assetID, req.EntryDate, req.Units, req.Notes).Scan(
+		&entry.ID, &entry.AssetID, &entryDate, &entry.Units, &entry.Notes, &entry.CreatedAt,
 	)
 	if err != nil {
 		core.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	entry.EntryDate = entryDate.Format("2006-01-02")
+
+	// Insert price if provided
+	if req.UnitValue > 0 {
+		_, err = tx.Exec(r.Context(), `
+			INSERT INTO asset_prices (asset_id, price_date, unit_value, source)
+			VALUES ($1, $2, $3, 'manual')
+			ON CONFLICT (asset_id, price_date) DO UPDATE SET unit_value = $3
+		`, assetID, req.EntryDate, req.UnitValue)
+		if err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	entry.UnitValue = req.UnitValue
+
+	if err := tx.Commit(r.Context()); err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
 	core.WriteJSON(w, http.StatusCreated, entry)
 }
@@ -292,21 +352,47 @@ func (h *Handler) UpdateAssetEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tx, err := h.db.Begin(r.Context())
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback(r.Context())
+
 	var entry AssetEntry
 	var entryDate time.Time
-	err = h.db.QueryRow(r.Context(), `
+	err = tx.QueryRow(r.Context(), `
 		UPDATE asset_entries 
-		SET entry_date = $1, units = $2, unit_value = $3, notes = $4
-		WHERE id = $5 AND asset_id = $6
-		RETURNING id, asset_id, entry_date, units, unit_value, notes, created_at
-	`, req.EntryDate, req.Units, req.UnitValue, req.Notes, entryID, assetID).Scan(
-		&entry.ID, &entry.AssetID, &entryDate, &entry.Units, &entry.UnitValue, &entry.Notes, &entry.CreatedAt,
+		SET entry_date = $1, units = $2, notes = $3
+		WHERE id = $4 AND asset_id = $5
+		RETURNING id, asset_id, entry_date, units, notes, created_at
+	`, req.EntryDate, req.Units, req.Notes, entryID, assetID).Scan(
+		&entry.ID, &entry.AssetID, &entryDate, &entry.Units, &entry.Notes, &entry.CreatedAt,
 	)
 	if err != nil {
 		core.WriteError(w, http.StatusNotFound, "entry not found")
 		return
 	}
 	entry.EntryDate = entryDate.Format("2006-01-02")
+
+	// Update price if provided
+	if req.UnitValue > 0 {
+		_, err = tx.Exec(r.Context(), `
+			INSERT INTO asset_prices (asset_id, price_date, unit_value, source)
+			VALUES ($1, $2, $3, 'manual')
+			ON CONFLICT (asset_id, price_date) DO UPDATE SET unit_value = $3
+		`, assetID, req.EntryDate, req.UnitValue)
+		if err != nil {
+			core.WriteError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	entry.UnitValue = req.UnitValue
+
+	if err := tx.Commit(r.Context()); err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
 	core.WriteJSON(w, http.StatusOK, entry)
 }
@@ -652,14 +738,20 @@ func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 	// Get total assets as of date (converted to SEK)
 	var totalAssets float64
 	err := h.db.QueryRow(r.Context(), `
-		SELECT COALESCE(SUM(e.units * e.unit_value * COALESCE(cr.sek_rate, 1)), 0)
+		SELECT COALESCE(SUM(e.units * COALESCE(p.unit_value, 0) * COALESCE(cr.sek_rate, 1)), 0)
 		FROM assets a
 		JOIN LATERAL (
-			SELECT units, unit_value FROM asset_entries 
+			SELECT units FROM asset_entries 
 			WHERE asset_id = a.id AND entry_date <= $1
 			ORDER BY entry_date DESC, created_at DESC 
 			LIMIT 1
 		) e ON true
+		LEFT JOIN LATERAL (
+			SELECT unit_value FROM asset_prices 
+			WHERE asset_id = a.id AND price_date <= $1
+			ORDER BY price_date DESC, created_at DESC 
+			LIMIT 1
+		) p ON true
 		LEFT JOIN currency_rates cr ON cr.currency = a.currency
 	`, asOfDate).Scan(&totalAssets)
 	if err != nil {
@@ -687,14 +779,20 @@ func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 
 	// Get breakdown by category (converted to SEK)
 	rows, err := h.db.Query(r.Context(), `
-		SELECT a.category, COALESCE(SUM(e.units * e.unit_value * COALESCE(cr.sek_rate, 1)), 0) as total
+		SELECT a.category, COALESCE(SUM(e.units * COALESCE(p.unit_value, 0) * COALESCE(cr.sek_rate, 1)), 0) as total
 		FROM assets a
 		JOIN LATERAL (
-			SELECT units, unit_value FROM asset_entries 
+			SELECT units FROM asset_entries 
 			WHERE asset_id = a.id AND entry_date <= $1
 			ORDER BY entry_date DESC, created_at DESC 
 			LIMIT 1
 		) e ON true
+		LEFT JOIN LATERAL (
+			SELECT unit_value FROM asset_prices 
+			WHERE asset_id = a.id AND price_date <= $1
+			ORDER BY price_date DESC, created_at DESC 
+			LIMIT 1
+		) p ON true
 		LEFT JOIN currency_rates cr ON cr.currency = a.currency
 		GROUP BY a.category
 	`, asOfDate)
@@ -729,12 +827,14 @@ func (h *Handler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 
 // GetHistory returns net worth history over time
 func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
-	// Get all unique dates from entries
+	// Get all unique dates from entries and prices
 	rows, err := h.db.Query(r.Context(), `
 		SELECT DISTINCT entry_date FROM (
 			SELECT entry_date FROM asset_entries
 			UNION
 			SELECT entry_date FROM debt_entries
+			UNION
+			SELECT price_date as entry_date FROM asset_prices
 		) dates
 		ORDER BY entry_date ASC
 	`)
@@ -759,14 +859,20 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		// Calculate totals as of each date (converted to SEK)
 		var totalAssets float64
 		h.db.QueryRow(r.Context(), `
-			SELECT COALESCE(SUM(e.units * e.unit_value * COALESCE(cr.sek_rate, 1)), 0)
+			SELECT COALESCE(SUM(e.units * COALESCE(p.unit_value, 0) * COALESCE(cr.sek_rate, 1)), 0)
 			FROM assets a
 			JOIN LATERAL (
-				SELECT units, unit_value FROM asset_entries 
+				SELECT units FROM asset_entries 
 				WHERE asset_id = a.id AND entry_date <= $1
 				ORDER BY entry_date DESC, created_at DESC 
 				LIMIT 1
 			) e ON true
+			LEFT JOIN LATERAL (
+				SELECT unit_value FROM asset_prices 
+				WHERE asset_id = a.id AND price_date <= $1
+				ORDER BY price_date DESC, created_at DESC 
+				LIMIT 1
+			) p ON true
 			LEFT JOIN currency_rates cr ON cr.currency = a.currency
 		`, date).Scan(&totalAssets)
 
@@ -796,12 +902,14 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 
 // GetDetailedHistory returns net worth history with per-item breakdown
 func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
-	// Get all unique dates from entries
+	// Get all unique dates from entries and prices
 	rows, err := h.db.Query(r.Context(), `
 		SELECT DISTINCT entry_date FROM (
 			SELECT entry_date FROM asset_entries
 			UNION
 			SELECT entry_date FROM debt_entries
+			UNION
+			SELECT price_date as entry_date FROM asset_prices
 		) dates
 		ORDER BY entry_date ASC
 	`)
@@ -893,10 +1001,16 @@ func (h *Handler) GetDetailedHistory(w http.ResponseWriter, r *http.Request) {
 		for _, asset := range assets {
 			var value float64
 			err := h.db.QueryRow(r.Context(), `
-				SELECT COALESCE(units * unit_value, 0)
-				FROM asset_entries 
-				WHERE asset_id = $1 AND entry_date <= $2
-				ORDER BY entry_date DESC, created_at DESC 
+				SELECT COALESCE(e.units * COALESCE(p.unit_value, 0), 0)
+				FROM asset_entries e
+				LEFT JOIN LATERAL (
+					SELECT unit_value FROM asset_prices 
+					WHERE asset_id = $1 AND price_date <= $2
+					ORDER BY price_date DESC, created_at DESC 
+					LIMIT 1
+				) p ON true
+				WHERE e.asset_id = $1 AND e.entry_date <= $2
+				ORDER BY e.entry_date DESC, e.created_at DESC 
 				LIMIT 1
 			`, asset.ID, date).Scan(&value)
 			if err == nil && value > 0 {
@@ -1022,4 +1136,112 @@ func (h *Handler) DeleteCurrencyRate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Asset Prices ---
+
+// UpdateAllPrices fetches and stores current prices for all stock assets
+func (h *Handler) UpdateAllPrices(w http.ResponseWriter, r *http.Request) {
+	results, err := h.prices.UpdateAllStockPrices(r.Context())
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	core.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"updated": len(results),
+		"results": results,
+	})
+}
+
+// ListAssetPrices returns price history for an asset
+func (h *Handler) ListAssetPrices(w http.ResponseWriter, r *http.Request) {
+	assetID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid asset id")
+		return
+	}
+
+	prices, err := h.prices.ListAssetPrices(r.Context(), assetID)
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	core.WriteJSON(w, http.StatusOK, prices)
+}
+
+// CreateAssetPrice manually adds a price for an asset
+func (h *Handler) CreateAssetPrice(w http.ResponseWriter, r *http.Request) {
+	assetID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid asset id")
+		return
+	}
+
+	var req struct {
+		PriceDate string  `json:"price_date"`
+		UnitValue float64 `json:"unit_value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		core.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.PriceDate == "" {
+		req.PriceDate = time.Now().Format("2006-01-02")
+	}
+
+	price, err := h.prices.UpdateAssetPrice(r.Context(), assetID, req.PriceDate, req.UnitValue, "manual")
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	core.WriteJSON(w, http.StatusCreated, price)
+}
+
+// FetchAssetPrice fetches and stores the current price for a single stock asset
+func (h *Handler) FetchAssetPrice(w http.ResponseWriter, r *http.Request) {
+	assetID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		core.WriteError(w, http.StatusBadRequest, "invalid asset id")
+		return
+	}
+
+	// Get the asset's ticker
+	var ticker *string
+	var assetType string
+	err = h.db.QueryRow(r.Context(), `
+		SELECT ticker, asset_type FROM assets WHERE id = $1
+	`, assetID).Scan(&ticker, &assetType)
+	if err != nil {
+		core.WriteError(w, http.StatusNotFound, "asset not found")
+		return
+	}
+
+	if assetType != "stock" || ticker == nil || *ticker == "" {
+		core.WriteError(w, http.StatusBadRequest, "asset is not a stock or has no ticker")
+		return
+	}
+
+	// Fetch price from Yahoo
+	price, currency, err := h.prices.FetchPrice(*ticker)
+	if err != nil {
+		core.WriteError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+
+	// Store the price
+	today := time.Now().Format("2006-01-02")
+	assetPrice, err := h.prices.UpdateAssetPrice(r.Context(), assetID, today, price, "yahoo")
+	if err != nil {
+		core.WriteError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	core.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"price":    assetPrice,
+		"currency": currency,
+	})
 }

@@ -11,7 +11,7 @@ import (
 
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/api"
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/core"
-	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/networth"
+	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/financial"
 	"github.com/joho/godotenv"
 )
 
@@ -32,8 +32,8 @@ func main() {
 	defer pool.Close()
 
 	// Run feature migrations
-	if err := networth.Migrate(context.Background(), pool); err != nil {
-		log.Fatalf("Failed to run networth migrations: %v", err)
+	if err := financial.Migrate(context.Background(), pool); err != nil {
+		log.Fatalf("Failed to run financial migrations: %v", err)
 	}
 	// Future features run migrations here:
 	// tasks.Migrate(ctx, pool)

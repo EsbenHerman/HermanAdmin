@@ -127,8 +127,8 @@ export const deleteDebtEntry = (debtId: number, entryId: number): Promise<void> 
 // Dashboard
 export const fetchNetWorthDashboard = (asOfDate?: string): Promise<NetWorthDashboard> => {
   const url = asOfDate 
-    ? `${API_BASE}/dashboard/networth?as_of=${asOfDate}` 
-    : `${API_BASE}/dashboard/networth`
+    ? `${API_BASE}/dashboard/financial?as_of=${asOfDate}` 
+    : `${API_BASE}/dashboard/financial`
   return fetch(url).then(r => handleResponse(r))
 }
 

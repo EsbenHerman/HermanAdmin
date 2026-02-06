@@ -13,7 +13,7 @@ const features: FeatureCard[] = [
     title: 'Net Worth',
     description: 'Track assets, debts, and progress toward financial independence.',
     icon: '💰',
-    path: '/networth',
+    path: '/financial',
     status: 'active',
   },
   {

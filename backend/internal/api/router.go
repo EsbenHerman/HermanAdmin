@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/networth"
+	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/financial"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -42,7 +42,7 @@ func NewRouter(db *pgxpool.Pool) *chi.Mux {
 
 	// API v1 routes - register features
 	r.Route("/api/v1", func(r chi.Router) {
-		networth.RegisterRoutes(r, db)
+		financial.RegisterRoutes(r, db)
 		// Future features register here:
 		// tasks.RegisterRoutes(r, db)
 		// calendar.RegisterRoutes(r, db)
