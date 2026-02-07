@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchDebts, createDebt, createDebtEntry, deleteDebt, fetchDebtEntries, updateDebtEntry, deleteDebtEntry } from '../api'
 import { formatSEK, formatCurrency, CURRENCIES } from '../utils'
 import type { DebtWithValue, DebtEntry } from '../types'
+import { 
+  Button, Input, Select, Card, PageHeader, 
+  TableContainer, FormField, EmptyState 
+} from '../../../shared/components/ui'
 
 const today = () => new Date().toISOString().split('T')[0]
 
@@ -84,16 +87,12 @@ export default function Debts() {
   const deleteEntryMutation = useMutation({
     mutationFn: ({ debtId, entryId }: { debtId: number; entryId: number }) => 
       deleteDebtEntry(debtId, entryId),
-    onSuccess: () => {
-      invalidateAll()
-    },
+    onSuccess: () => invalidateAll(),
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteDebt,
-    onSuccess: () => {
-      invalidateAll()
-    },
+    onSuccess: () => invalidateAll(),
   })
 
   const closeForm = () => {
@@ -175,7 +174,11 @@ export default function Debts() {
   }
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading...</div>
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full" />
+      </div>
+    )
   }
 
   const totalDebt = debts?.reduce((sum, d) => sum + (d.latest_entry?.principal || 0), 0) ?? 0
@@ -183,139 +186,146 @@ export default function Debts() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <Link to="/financial" className="text-sm text-blue-600 hover:text-blue-800">← Financial Dashboard</Link>
-          <h1 className="text-2xl font-bold text-gray-900">Debts</h1>
-        </div>
-        <button
-          onClick={() => { setShowForm(!showForm); setUpdateDebtId(null); }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-        >
-          {showForm ? 'Cancel' : '+ Add Debt'}
-        </button>
-      </div>
+      <PageHeader
+        title="Debts"
+        backLink="/financial"
+        backLabel="← Financial Dashboard"
+        actions={
+          <Button
+            variant={showForm ? 'secondary' : 'primary'}
+            onClick={() => { setShowForm(!showForm); setUpdateDebtId(null); }}
+          >
+            {showForm ? 'Cancel' : '+ Add Debt'}
+          </Button>
+        }
+      />
 
       {/* Add Debt Form */}
       {showForm && (
-        <form onSubmit={handleCreateSubmit} className="bg-white shadow rounded-lg p-6 space-y-4">
-          <h2 className="text-lg font-medium">Add New Debt</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
-              <input
-                type="text"
-                value={debtForm.name}
-                onChange={(e) => setDebtForm({ ...debtForm, name: e.target.value })}
-                placeholder="e.g., Mortgage"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              />
+        <Card>
+          <form onSubmit={handleCreateSubmit} className="space-y-6">
+            <h2 className="section-title">Add New Debt</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <FormField label="Name">
+                <Input
+                  type="text"
+                  value={debtForm.name}
+                  onChange={(e) => setDebtForm({ ...debtForm, name: e.target.value })}
+                  placeholder="e.g., Mortgage"
+                  required
+                />
+              </FormField>
+
+              <FormField label="Currency">
+                <Select
+                  value={debtForm.currency}
+                  onChange={(e) => setDebtForm({ ...debtForm, currency: e.target.value })}
+                >
+                  {CURRENCIES.map((cur) => (
+                    <option key={cur} value={cur}>{cur}</option>
+                  ))}
+                </Select>
+              </FormField>
+
+              <FormField label="Interest Rate (%)">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={debtForm.interest_rate}
+                  onChange={(e) => setDebtForm({ ...debtForm, interest_rate: e.target.value })}
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Date">
+                <Input
+                  type="date"
+                  value={debtForm.entry_date}
+                  onChange={(e) => setDebtForm({ ...debtForm, entry_date: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label={`Principal (${debtForm.currency})`}>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={debtForm.principal}
+                  onChange={(e) => setDebtForm({ ...debtForm, principal: e.target.value })}
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label={`Monthly Payment (${debtForm.currency})`}>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={debtForm.monthly_payment}
+                  onChange={(e) => setDebtForm({ ...debtForm, monthly_payment: e.target.value })}
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Notes">
+                <Input
+                  type="text"
+                  value={debtForm.notes}
+                  onChange={(e) => setDebtForm({ ...debtForm, notes: e.target.value })}
+                />
+              </FormField>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Currency</label>
-              <select
-                value={debtForm.currency}
-                onChange={(e) => setDebtForm({ ...debtForm, currency: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                {CURRENCIES.map((cur) => (
-                  <option key={cur} value={cur}>{cur}</option>
-                ))}
-              </select>
+
+            <div className="flex justify-end pt-4 border-t border-gray-200">
+              <Button type="submit" loading={createMutation.isPending}>
+                Create Debt
+              </Button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Interest Rate (%)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={debtForm.interest_rate}
-                onChange={(e) => setDebtForm({ ...debtForm, interest_rate: e.target.value })}
-                placeholder="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Date</label>
-              <input
-                type="date"
-                value={debtForm.entry_date}
-                onChange={(e) => setDebtForm({ ...debtForm, entry_date: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Principal ({debtForm.currency})</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={debtForm.principal}
-                onChange={(e) => setDebtForm({ ...debtForm, principal: e.target.value })}
-                placeholder="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Monthly Payment ({debtForm.currency})</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={debtForm.monthly_payment}
-                onChange={(e) => setDebtForm({ ...debtForm, monthly_payment: e.target.value })}
-                placeholder="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Notes</label>
-              <input
-                type="text"
-                value={debtForm.notes}
-                onChange={(e) => setDebtForm({ ...debtForm, notes: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end pt-2">
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-            >
-              {createMutation.isPending ? 'Saving...' : 'Create Debt'}
-            </button>
-          </div>
-        </form>
+          </form>
+        </Card>
       )}
 
       {/* Summary */}
-      <div className="bg-white shadow rounded-lg p-4 flex gap-8">
-        <p className="text-lg font-semibold">Total Debt: <span className="text-red-600">{formatSEK(totalDebt)}</span></p>
-        <p className="text-lg">Monthly Payments: {formatSEK(monthlyPayments)}</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">Total Debt</p>
+            <p className="text-2xl font-semibold font-mono text-danger-600">{formatSEK(totalDebt)}</p>
+          </div>
+          <span className="text-3xl">📉</span>
+        </Card>
+        <Card className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">Monthly Payments</p>
+            <p className="text-2xl font-semibold font-mono text-gray-900">{formatSEK(monthlyPayments)}</p>
+          </div>
+          <span className="text-3xl">💳</span>
+        </Card>
       </div>
 
       {/* Debt Table */}
-      <div className="bg-white shadow overflow-hidden rounded-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <TableContainer>
+        <table className="table">
+          <thead>
             <tr>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Principal</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">As Of</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="w-10"></th>
+              <th>Name</th>
+              <th className="text-right">Rate</th>
+              <th className="text-right">Principal</th>
+              <th className="text-right">Monthly</th>
+              <th className="text-right">As Of</th>
+              <th className="text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody>
             {debts?.map((debt: DebtWithValue) => (
               <>
-                <tr key={debt.id} className={updateDebtId === debt.id ? 'bg-blue-50' : expandedDebtId === debt.id ? 'bg-gray-50' : ''}>
-                  <td className="px-3 py-4 whitespace-nowrap">
+                <tr 
+                  key={debt.id} 
+                  className={`${updateDebtId === debt.id ? 'bg-primary-50' : ''} ${expandedDebtId === debt.id ? 'bg-gray-50' : ''}`}
+                >
+                  <td>
                     <button
                       onClick={() => toggleExpand(debt.id)}
-                      className="text-gray-400 hover:text-gray-600 transition-transform"
+                      className="p-1 text-gray-400 hover:text-gray-600 transition-transform"
                       title="Show history"
                     >
                       <span className={`inline-block transition-transform ${expandedDebtId === debt.id ? 'rotate-90' : ''}`}>
@@ -323,126 +333,127 @@ export default function Debts() {
                       </span>
                     </button>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{debt.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{debt.interest_rate}%</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
+                  <td className="font-medium">{debt.name}</td>
+                  <td className="text-right text-gray-500 font-mono tabular-nums">{debt.interest_rate}%</td>
+                  <td className="text-right font-semibold text-danger-600 font-mono tabular-nums">
                     {debt.latest_entry ? formatCurrency(debt.latest_entry.principal, debt.currency) : '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                  <td className="text-right text-gray-500 font-mono tabular-nums">
                     {debt.latest_entry ? formatCurrency(debt.latest_entry.monthly_payment, debt.currency) : '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                  <td className="text-right text-gray-500">
                     {debt.latest_entry?.entry_date || '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-3">
-                    <button
-                      onClick={() => openUpdate(debt)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      Update
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete "${debt.name}" and all its history? This cannot be undone.`)) {
-                          deleteMutation.mutate(debt.id)
-                        }
-                      }}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Delete
-                    </button>
+                  <td className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button variant="ghost" size="xs" onClick={() => openUpdate(debt)}>
+                        Update
+                      </Button>
+                      <Button 
+                        variant="danger" 
+                        size="xs"
+                        onClick={() => {
+                          if (confirm(`Delete "${debt.name}" and all its history? This cannot be undone.`)) {
+                            deleteMutation.mutate(debt.id)
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
+
                 {/* Expanded History Row */}
                 {expandedDebtId === debt.id && (
                   <tr key={`${debt.id}-history`} className="bg-gray-50">
-                    <td colSpan={7} className="px-6 py-4">
-                      <div className="ml-8">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">History</h4>
+                    <td colSpan={7} className="p-4">
+                      <div className="ml-6 pl-4 border-l-2 border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">History</h4>
                         {expandedEntries && expandedEntries.length > 0 ? (
-                          <table className="min-w-full text-sm">
+                          <table className="w-full text-sm">
                             <thead>
-                              <tr className="text-xs text-gray-500 uppercase">
-                                <th className="py-1 text-left">Date</th>
-                                <th className="py-1 text-right">Principal</th>
-                                <th className="py-1 text-right">Monthly Payment</th>
-                                <th className="py-1 text-left pl-4">Notes</th>
-                                <th className="py-1 text-right">Actions</th>
+                              <tr className="text-xs text-gray-500 uppercase border-b border-gray-200">
+                                <th className="py-2 text-left font-semibold">Date</th>
+                                <th className="py-2 text-right font-semibold">Principal</th>
+                                <th className="py-2 text-right font-semibold">Monthly Payment</th>
+                                <th className="py-2 text-left pl-4 font-semibold">Notes</th>
+                                <th className="py-2 text-right font-semibold">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {expandedEntries.map((entry: DebtEntry) => (
                                 editingEntryId === entry.id ? (
-                                  <tr key={entry.id} className="border-t border-gray-200 bg-blue-50">
+                                  <tr key={entry.id} className="border-t border-gray-200 bg-primary-50">
                                     <td className="py-2">
-                                      <input
+                                      <Input
                                         type="date"
                                         value={editEntryForm.entry_date}
                                         onChange={(e) => setEditEntryForm({ ...editEntryForm, entry_date: e.target.value })}
-                                        className="w-32 rounded border-gray-300 text-sm"
+                                        className="w-32 text-sm"
                                       />
                                     </td>
                                     <td className="py-2 text-right">
-                                      <input
+                                      <Input
                                         type="text"
                                         inputMode="decimal"
                                         value={editEntryForm.principal}
                                         onChange={(e) => setEditEntryForm({ ...editEntryForm, principal: e.target.value })}
-                                        className="w-28 rounded border-gray-300 text-sm text-right"
+                                        className="w-28 text-sm text-right"
                                       />
                                     </td>
                                     <td className="py-2 text-right">
-                                      <input
+                                      <Input
                                         type="text"
                                         inputMode="decimal"
                                         value={editEntryForm.monthly_payment}
                                         onChange={(e) => setEditEntryForm({ ...editEntryForm, monthly_payment: e.target.value })}
-                                        className="w-28 rounded border-gray-300 text-sm text-right"
+                                        className="w-28 text-sm text-right"
                                       />
                                     </td>
                                     <td className="py-2 pl-4">
-                                      <input
+                                      <Input
                                         type="text"
                                         value={editEntryForm.notes}
                                         onChange={(e) => setEditEntryForm({ ...editEntryForm, notes: e.target.value })}
-                                        className="w-32 rounded border-gray-300 text-sm"
+                                        className="w-32 text-sm"
                                       />
                                     </td>
-                                    <td className="py-2 text-right space-x-2">
-                                      <button
-                                        onClick={(e) => handleEditEntrySubmit(e, debt.id, entry.id)}
-                                        disabled={updateEntryMutation.isPending}
-                                        className="text-green-600 hover:text-green-800"
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        onClick={() => setEditingEntryId(null)}
-                                        className="text-gray-500 hover:text-gray-700"
-                                      >
-                                        Cancel
-                                      </button>
+                                    <td className="py-2 text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <Button
+                                          variant="primary"
+                                          size="xs"
+                                          onClick={(e) => handleEditEntrySubmit(e, debt.id, entry.id)}
+                                          loading={updateEntryMutation.isPending}
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="xs"
+                                          onClick={() => setEditingEntryId(null)}
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
                                     </td>
                                   </tr>
                                 ) : (
-                                  <tr key={entry.id} className="border-t border-gray-200">
+                                  <tr key={entry.id} className="border-t border-gray-200 hover:bg-gray-100">
                                     <td className="py-2 text-gray-600">{entry.entry_date}</td>
-                                    <td className="py-2 text-right font-medium text-red-600">{formatCurrency(entry.principal, debt.currency)}</td>
-                                    <td className="py-2 text-right text-gray-600">{formatCurrency(entry.monthly_payment, debt.currency)}</td>
+                                    <td className="py-2 text-right font-semibold text-danger-600 font-mono tabular-nums">{formatCurrency(entry.principal, debt.currency)}</td>
+                                    <td className="py-2 text-right text-gray-600 font-mono tabular-nums">{formatCurrency(entry.monthly_payment, debt.currency)}</td>
                                     <td className="py-2 text-left pl-4 text-gray-500">{entry.notes || '-'}</td>
-                                    <td className="py-2 text-right space-x-2">
-                                      <button
-                                        onClick={() => openEditEntry(entry)}
-                                        className="text-blue-600 hover:text-blue-800"
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteEntry(debt.id, entry.id)}
-                                        className="text-red-600 hover:text-red-800"
-                                      >
-                                        Delete
-                                      </button>
+                                    <td className="py-2 text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <Button variant="ghost" size="xs" onClick={() => openEditEntry(entry)}>
+                                          Edit
+                                        </Button>
+                                        <Button variant="danger" size="xs" onClick={() => handleDeleteEntry(debt.id, entry.id)}>
+                                          Delete
+                                        </Button>
+                                      </div>
                                     </td>
                                   </tr>
                                 )
@@ -456,81 +467,82 @@ export default function Debts() {
                     </td>
                   </tr>
                 )}
+
                 {/* Update Form Row */}
                 {updateDebtId === debt.id && (
-                  <tr key={`${debt.id}-update`} className="bg-blue-50">
-                    <td colSpan={7} className="px-6 py-4">
-                      <form onSubmit={handleUpdateSubmit} className="flex items-end gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700">Date</label>
-                          <input
+                  <tr key={`${debt.id}-update`} className="bg-primary-50">
+                    <td colSpan={7} className="p-4">
+                      <form onSubmit={handleUpdateSubmit} className="flex flex-wrap items-end gap-4">
+                        <FormField label="Date" className="w-auto">
+                          <Input
                             type="date"
                             value={entryForm.entry_date}
                             onChange={(e) => setEntryForm({ ...entryForm, entry_date: e.target.value })}
-                            className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            className="w-36"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700">Principal ({debt.currency})</label>
-                          <input
+                        </FormField>
+                        <FormField label={`Principal (${debt.currency})`} className="w-auto">
+                          <Input
                             type="text"
                             inputMode="decimal"
                             value={entryForm.principal}
                             onChange={(e) => setEntryForm({ ...entryForm, principal: e.target.value })}
                             placeholder="0"
-                            className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            className="w-32"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700">Monthly ({debt.currency})</label>
-                          <input
+                        </FormField>
+                        <FormField label={`Monthly (${debt.currency})`} className="w-auto">
+                          <Input
                             type="text"
                             inputMode="decimal"
                             value={entryForm.monthly_payment}
                             onChange={(e) => setEntryForm({ ...entryForm, monthly_payment: e.target.value })}
                             placeholder="0"
-                            className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            className="w-32"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700">Notes</label>
-                          <input
+                        </FormField>
+                        <FormField label="Notes" className="w-auto">
+                          <Input
                             type="text"
                             value={entryForm.notes}
                             onChange={(e) => setEntryForm({ ...entryForm, notes: e.target.value })}
-                            className="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            className="w-40"
                           />
+                        </FormField>
+                        <div className="flex items-center gap-3 pb-0.5">
+                          <Button type="submit" size="sm" loading={addEntryMutation.isPending}>
+                            Save
+                          </Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setUpdateDebtId(null)}>
+                            Cancel
+                          </Button>
                         </div>
-                        <button
-                          type="submit"
-                          disabled={addEntryMutation.isPending}
-                          className="bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 disabled:opacity-50 text-sm"
-                        >
-                          {addEntryMutation.isPending ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setUpdateDebtId(null)}
-                          className="text-gray-500 hover:text-gray-700 text-sm"
-                        >
-                          Cancel
-                        </button>
                       </form>
                     </td>
                   </tr>
                 )}
               </>
             ))}
+
             {(!debts || debts.length === 0) && (
               <tr>
-                <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
-                  No debts yet. Add your first debt above.
+                <td colSpan={7}>
+                  <EmptyState
+                    icon="📉"
+                    title="No debts yet"
+                    description="Add your first debt to start tracking what you owe."
+                    action={
+                      <Button onClick={() => setShowForm(true)}>
+                        + Add Debt
+                      </Button>
+                    }
+                  />
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-      </div>
+      </TableContainer>
     </div>
   )
 }

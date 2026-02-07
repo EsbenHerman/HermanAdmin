@@ -17,6 +17,7 @@ interface Props {
 
 type SeriesKey = 'sleep_score' | 'readiness_score' | 'activity_score'
 
+// Mercury-style coordinated colors
 const SERIES_CONFIG: Record<SeriesKey, { name: string; color: string }> = {
   sleep_score: { name: 'Sleep', color: '#6366f1' },
   readiness_score: { name: 'Readiness', color: '#f59e0b' },
@@ -50,7 +51,6 @@ export default function WeekdayAveragesChart({ history }: Props) {
   const weekdayAverages = useMemo(() => {
     if (!history || history.length === 0) return []
 
-    // Group by weekday (0 = Monday, 6 = Sunday)
     const groups: Record<number, { sleep: number[]; readiness: number[]; activity: number[] }> = {}
     for (let i = 0; i < 7; i++) {
       groups[i] = { sleep: [], readiness: [], activity: [] }
@@ -58,7 +58,6 @@ export default function WeekdayAveragesChart({ history }: Props) {
 
     history.forEach(point => {
       const date = new Date(point.day)
-      // getDay() returns 0 for Sunday, we want Monday = 0
       const weekdayIndex = (date.getDay() + 6) % 7
 
       if (point.sleep_score != null) {
@@ -72,7 +71,6 @@ export default function WeekdayAveragesChart({ history }: Props) {
       }
     })
 
-    // Calculate averages
     const result: WeekdayAverage[] = []
     for (let i = 0; i < 7; i++) {
       const g = groups[i]
@@ -102,11 +100,10 @@ export default function WeekdayAveragesChart({ history }: Props) {
     )
   }
 
-  // Custom legend that's clickable
   const renderLegend = (props: any) => {
     const { payload } = props
     return (
-      <div className="flex justify-center gap-4 mt-2">
+      <div className="flex justify-center gap-4 mt-4">
         {payload.map((entry: any, index: number) => {
           const key = entry.dataKey as SeriesKey
           const isVisible = visibleSeries[key]
@@ -114,17 +111,17 @@ export default function WeekdayAveragesChart({ history }: Props) {
             <button
               key={`legend-${index}`}
               onClick={() => handleLegendClick(entry.dataKey)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
                 isVisible 
-                  ? 'opacity-100' 
-                  : 'opacity-40 line-through'
-              } hover:bg-gray-100`}
+                  ? 'opacity-100 hover:bg-gray-100' 
+                  : 'opacity-40 line-through hover:bg-gray-50'
+              }`}
             >
               <span
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: entry.color }}
               />
-              <span className="text-sm text-gray-700">{entry.value}</span>
+              <span className="text-sm font-medium text-gray-700">{entry.value}</span>
             </button>
           )
         })}
@@ -133,19 +130,29 @@ export default function WeekdayAveragesChart({ history }: Props) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={200}>
+    <ResponsiveContainer width="100%" height={220}>
       <BarChart data={weekdayAverages}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e8" />
         <XAxis 
           dataKey="weekday" 
-          tick={{ fontSize: 12 }}
+          tick={{ fontSize: 12, fill: '#737373' }}
+          axisLine={{ stroke: '#e8e8e8' }}
+          tickLine={{ stroke: '#e8e8e8' }}
         />
         <YAxis 
           domain={[0, 100]} 
-          tick={{ fontSize: 12 }}
+          tick={{ fontSize: 12, fill: '#737373' }}
+          axisLine={{ stroke: '#e8e8e8' }}
+          tickLine={{ stroke: '#e8e8e8' }}
         />
         <Tooltip 
           formatter={(value) => [value ?? 0, '']}
+          contentStyle={{ 
+            backgroundColor: 'white', 
+            border: '1px solid #e8e8e8',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'
+          }}
         />
         <Legend content={renderLegend} />
         {(Object.keys(SERIES_CONFIG) as SeriesKey[]).map(key => (
@@ -155,7 +162,7 @@ export default function WeekdayAveragesChart({ history }: Props) {
             name={SERIES_CONFIG[key].name}
             fill={SERIES_CONFIG[key].color}
             hide={!visibleSeries[key]}
-            radius={[2, 2, 0, 0]}
+            radius={[4, 4, 0, 0]}
           />
         ))}
       </BarChart>

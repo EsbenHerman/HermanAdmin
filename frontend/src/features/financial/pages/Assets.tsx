@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchAssets, createAsset, createAssetEntry, deleteAsset, fetchAssetEntries, updateAssetEntry, deleteAssetEntry } from '../api'
 import { formatSEK, formatCurrency, CURRENCIES } from '../utils'
 import type { AssetWithValue, AssetEntry } from '../types'
+import { 
+  Button, Input, Select, Card, PageHeader, Badge, 
+  TableContainer, FormField, EmptyState 
+} from '../../../shared/components/ui'
 
 const CATEGORIES = ['Real Estate', 'Equity - Public', 'Equity - Private', 'Cash', 'Other']
 
@@ -88,16 +91,12 @@ export default function Assets() {
   const deleteEntryMutation = useMutation({
     mutationFn: ({ assetId, entryId }: { assetId: number; entryId: number }) => 
       deleteAssetEntry(assetId, entryId),
-    onSuccess: () => {
-      invalidateAll()
-    },
+    onSuccess: () => invalidateAll(),
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteAsset,
-    onSuccess: () => {
-      invalidateAll()
-    },
+    onSuccess: () => invalidateAll(),
   })
 
   const closeForm = () => {
@@ -179,177 +178,174 @@ export default function Assets() {
   }
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading...</div>
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full" />
+      </div>
+    )
   }
 
   const totalValue = assets?.reduce((sum, a) => sum + a.total_value, 0) ?? 0
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <Link to="/financial" className="text-sm text-blue-600 hover:text-blue-800">← Financial Dashboard</Link>
-          <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
-        </div>
-        <button
-          onClick={() => { setShowForm(!showForm); setUpdateAssetId(null); }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-        >
-          {showForm ? 'Cancel' : '+ Add Asset'}
-        </button>
-      </div>
+      <PageHeader
+        title="Assets"
+        backLink="/financial"
+        backLabel="← Financial Dashboard"
+        actions={
+          <Button
+            variant={showForm ? 'secondary' : 'primary'}
+            onClick={() => { setShowForm(!showForm); setUpdateAssetId(null); }}
+          >
+            {showForm ? 'Cancel' : '+ Add Asset'}
+          </Button>
+        }
+      />
 
       {/* Add Asset Form */}
       {showForm && (
-        <form onSubmit={handleCreateSubmit} className="bg-white shadow rounded-lg p-6 space-y-4">
-          <h2 className="text-lg font-medium">Add New Asset</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Category</label>
-              <select
-                value={assetForm.category}
-                onChange={(e) => setAssetForm({ ...assetForm, category: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Type</label>
-              <select
-                value={assetForm.asset_type}
-                onChange={(e) => setAssetForm({ ...assetForm, asset_type: e.target.value as 'stock' | 'manual' })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                <option value="manual">Manual</option>
-                <option value="stock">Stock</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
-              <input
-                type="text"
-                value={assetForm.name}
-                onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
-                placeholder="e.g., Apple Inc."
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              />
-            </div>
-            {assetForm.asset_type === 'stock' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Ticker</label>
-                <input
+        <Card>
+          <form onSubmit={handleCreateSubmit} className="space-y-6">
+            <h2 className="section-title">Add New Asset</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <FormField label="Category">
+                <Select
+                  value={assetForm.category}
+                  onChange={(e) => setAssetForm({ ...assetForm, category: e.target.value })}
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </Select>
+              </FormField>
+
+              <FormField label="Type">
+                <Select
+                  value={assetForm.asset_type}
+                  onChange={(e) => setAssetForm({ ...assetForm, asset_type: e.target.value as 'stock' | 'manual' })}
+                >
+                  <option value="manual">Manual</option>
+                  <option value="stock">Stock</option>
+                </Select>
+              </FormField>
+
+              <FormField label="Name">
+                <Input
                   type="text"
-                  value={assetForm.ticker}
-                  onChange={(e) => setAssetForm({ ...assetForm, ticker: e.target.value.toUpperCase() })}
-                  placeholder="e.g., AAPL"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={assetForm.name}
+                  onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
+                  placeholder="e.g., Apple Inc."
+                  required
                 />
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Currency</label>
-              <select
-                value={assetForm.currency}
-                onChange={(e) => setAssetForm({ ...assetForm, currency: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              >
-                {CURRENCIES.map((cur) => (
-                  <option key={cur} value={cur}>{cur}</option>
-                ))}
-              </select>
+              </FormField>
+
+              {assetForm.asset_type === 'stock' && (
+                <FormField label="Ticker">
+                  <Input
+                    type="text"
+                    value={assetForm.ticker}
+                    onChange={(e) => setAssetForm({ ...assetForm, ticker: e.target.value.toUpperCase() })}
+                    placeholder="e.g., AAPL"
+                  />
+                </FormField>
+              )}
+
+              <FormField label="Currency">
+                <Select
+                  value={assetForm.currency}
+                  onChange={(e) => setAssetForm({ ...assetForm, currency: e.target.value })}
+                >
+                  {CURRENCIES.map((cur) => (
+                    <option key={cur} value={cur}>{cur}</option>
+                  ))}
+                </Select>
+              </FormField>
+
+              <FormField label="Date">
+                <Input
+                  type="date"
+                  value={assetForm.entry_date}
+                  onChange={(e) => setAssetForm({ ...assetForm, entry_date: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label={assetForm.asset_type === 'stock' ? 'Shares' : 'Units'}>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={assetForm.units}
+                  onChange={(e) => setAssetForm({ ...assetForm, units: e.target.value })}
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label={assetForm.asset_type === 'stock' ? `Price per Share (${assetForm.currency})` : `Value (${assetForm.currency})`}>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={assetForm.unit_value}
+                  onChange={(e) => setAssetForm({ ...assetForm, unit_value: e.target.value })}
+                  placeholder="0"
+                />
+              </FormField>
+
+              <FormField label="Notes">
+                <Input
+                  type="text"
+                  value={assetForm.notes}
+                  onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
+                />
+              </FormField>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Date</label>
-              <input
-                type="date"
-                value={assetForm.entry_date}
-                onChange={(e) => setAssetForm({ ...assetForm, entry_date: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
+
+            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-500">
+                Total: <span className="font-semibold font-mono text-gray-900">{formatSEK(parseNum(assetForm.units) * parseNum(assetForm.unit_value))}</span>
+              </p>
+              <Button type="submit" loading={createMutation.isPending}>
+                Create Asset
+              </Button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                {assetForm.asset_type === 'stock' ? 'Shares' : 'Units'}
-              </label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={assetForm.units}
-                onChange={(e) => setAssetForm({ ...assetForm, units: e.target.value })}
-                placeholder="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                {assetForm.asset_type === 'stock' ? `Price per Share (${assetForm.currency})` : `Value (${assetForm.currency})`}
-              </label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={assetForm.unit_value}
-                onChange={(e) => setAssetForm({ ...assetForm, unit_value: e.target.value })}
-                placeholder="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Notes</label>
-              <input
-                type="text"
-                value={assetForm.notes}
-                onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          <div className="flex items-center justify-between pt-2">
-            <p className="text-sm text-gray-500">
-              Total: {formatSEK(parseNum(assetForm.units) * parseNum(assetForm.unit_value))}
-            </p>
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-            >
-              {createMutation.isPending ? 'Saving...' : 'Create Asset'}
-            </button>
-          </div>
-        </form>
+          </form>
+        </Card>
       )}
 
       {/* Summary */}
-      <div className="bg-white shadow rounded-lg p-4">
-        <p className="text-lg font-semibold">Total: {formatSEK(totalValue)}</p>
-      </div>
+      <Card className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-500">Total Assets</p>
+          <p className="text-2xl font-semibold font-mono text-gray-900">{formatSEK(totalValue)}</p>
+        </div>
+        <span className="text-3xl">📈</span>
+      </Card>
 
       {/* Asset Table */}
-      <div className="bg-white shadow overflow-hidden rounded-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <TableContainer>
+        <table className="table">
+          <thead>
             <tr>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Value</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">As Of</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="w-10"></th>
+              <th>Name</th>
+              <th>Category</th>
+              <th className="text-right">Units</th>
+              <th className="text-right">Unit Value</th>
+              <th className="text-right">Total</th>
+              <th className="text-right">As Of</th>
+              <th className="text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody>
             {assets?.map((asset: AssetWithValue) => (
               <>
-                <tr key={asset.id} className={updateAssetId === asset.id ? 'bg-blue-50' : expandedAssetId === asset.id ? 'bg-gray-50' : ''}>
-                  <td className="px-3 py-4 whitespace-nowrap">
+                <tr 
+                  key={asset.id} 
+                  className={`${updateAssetId === asset.id ? 'bg-primary-50' : ''} ${expandedAssetId === asset.id ? 'bg-gray-50' : ''}`}
+                >
+                  <td>
                     <button
                       onClick={() => toggleExpand(asset.id)}
-                      className="text-gray-400 hover:text-gray-600 transition-transform"
+                      className="p-1 text-gray-400 hover:text-gray-600 transition-transform"
                       title="Show history"
                     >
                       <span className={`inline-block transition-transform ${expandedAssetId === asset.id ? 'rotate-90' : ''}`}>
@@ -357,138 +353,141 @@ export default function Assets() {
                       </span>
                     </button>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="font-medium">
                     {asset.name}
                     {asset.ticker && <span className="ml-2 text-gray-500">({asset.ticker})</span>}
-                    {asset.asset_type === 'stock' && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Stock</span>}
+                    {asset.asset_type === 'stock' && (
+                      <Badge variant="primary" className="ml-2">Stock</Badge>
+                    )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{asset.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                  <td className="text-gray-500">{asset.category}</td>
+                  <td className="text-right font-mono tabular-nums">
                     {asset.latest_entry?.units.toLocaleString() || '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                  <td className="text-right text-gray-500 font-mono tabular-nums">
                     {asset.latest_entry ? formatCurrency(asset.latest_entry.unit_value, asset.currency) : '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+                  <td className="text-right font-semibold font-mono tabular-nums">
                     {formatCurrency(asset.total_value, asset.currency)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                  <td className="text-right text-gray-500">
                     {asset.latest_entry?.entry_date || '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-3">
-                    <button
-                      onClick={() => openUpdate(asset)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      Update
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete "${asset.name}" and all its history? This cannot be undone.`)) {
-                          deleteMutation.mutate(asset.id)
-                        }
-                      }}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Delete
-                    </button>
+                  <td className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button variant="ghost" size="xs" onClick={() => openUpdate(asset)}>
+                        Update
+                      </Button>
+                      <Button 
+                        variant="danger" 
+                        size="xs"
+                        onClick={() => {
+                          if (confirm(`Delete "${asset.name}" and all its history? This cannot be undone.`)) {
+                            deleteMutation.mutate(asset.id)
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
+
                 {/* Expanded History Row */}
                 {expandedAssetId === asset.id && (
                   <tr key={`${asset.id}-history`} className="bg-gray-50">
-                    <td colSpan={8} className="px-6 py-4">
-                      <div className="ml-8">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">History</h4>
+                    <td colSpan={8} className="p-4">
+                      <div className="ml-6 pl-4 border-l-2 border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">History</h4>
                         {expandedEntries && expandedEntries.length > 0 ? (
-                          <table className="min-w-full text-sm">
+                          <table className="w-full text-sm">
                             <thead>
-                              <tr className="text-xs text-gray-500 uppercase">
-                                <th className="py-1 text-left">Date</th>
-                                <th className="py-1 text-right">Units</th>
-                                <th className="py-1 text-right">Unit Value</th>
-                                <th className="py-1 text-right">Total</th>
-                                <th className="py-1 text-left pl-4">Notes</th>
-                                <th className="py-1 text-right">Actions</th>
+                              <tr className="text-xs text-gray-500 uppercase border-b border-gray-200">
+                                <th className="py-2 text-left font-semibold">Date</th>
+                                <th className="py-2 text-right font-semibold">Units</th>
+                                <th className="py-2 text-right font-semibold">Unit Value</th>
+                                <th className="py-2 text-right font-semibold">Total</th>
+                                <th className="py-2 text-left pl-4 font-semibold">Notes</th>
+                                <th className="py-2 text-right font-semibold">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {expandedEntries.map((entry: AssetEntry) => (
                                 editingEntryId === entry.id ? (
-                                  <tr key={entry.id} className="border-t border-gray-200 bg-blue-50">
+                                  <tr key={entry.id} className="border-t border-gray-200 bg-primary-50">
                                     <td className="py-2">
-                                      <input
+                                      <Input
                                         type="date"
                                         value={editEntryForm.entry_date}
                                         onChange={(e) => setEditEntryForm({ ...editEntryForm, entry_date: e.target.value })}
-                                        className="w-32 rounded border-gray-300 text-sm"
+                                        className="w-32 text-sm"
                                       />
                                     </td>
                                     <td className="py-2 text-right">
-                                      <input
+                                      <Input
                                         type="text"
                                         inputMode="decimal"
                                         value={editEntryForm.units}
                                         onChange={(e) => setEditEntryForm({ ...editEntryForm, units: e.target.value })}
-                                        className="w-24 rounded border-gray-300 text-sm text-right"
+                                        className="w-24 text-sm text-right"
                                       />
                                     </td>
                                     <td className="py-2 text-right">
-                                      <input
+                                      <Input
                                         type="text"
                                         inputMode="decimal"
                                         value={editEntryForm.unit_value}
                                         onChange={(e) => setEditEntryForm({ ...editEntryForm, unit_value: e.target.value })}
-                                        className="w-28 rounded border-gray-300 text-sm text-right"
+                                        className="w-28 text-sm text-right"
                                       />
                                     </td>
-                                    <td className="py-2 text-right font-medium text-gray-900">
+                                    <td className="py-2 text-right font-semibold font-mono">
                                       {formatCurrency(parseNum(editEntryForm.units) * parseNum(editEntryForm.unit_value), asset.currency)}
                                     </td>
                                     <td className="py-2 pl-4">
-                                      <input
+                                      <Input
                                         type="text"
                                         value={editEntryForm.notes}
                                         onChange={(e) => setEditEntryForm({ ...editEntryForm, notes: e.target.value })}
-                                        className="w-32 rounded border-gray-300 text-sm"
+                                        className="w-32 text-sm"
                                       />
                                     </td>
-                                    <td className="py-2 text-right space-x-2">
-                                      <button
-                                        onClick={(e) => handleEditEntrySubmit(e, asset.id, entry.id)}
-                                        disabled={updateEntryMutation.isPending}
-                                        className="text-green-600 hover:text-green-800"
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        onClick={() => setEditingEntryId(null)}
-                                        className="text-gray-500 hover:text-gray-700"
-                                      >
-                                        Cancel
-                                      </button>
+                                    <td className="py-2 text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <Button
+                                          variant="primary"
+                                          size="xs"
+                                          onClick={(e) => handleEditEntrySubmit(e, asset.id, entry.id)}
+                                          loading={updateEntryMutation.isPending}
+                                        >
+                                          Save
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="xs"
+                                          onClick={() => setEditingEntryId(null)}
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
                                     </td>
                                   </tr>
                                 ) : (
-                                  <tr key={entry.id} className="border-t border-gray-200">
+                                  <tr key={entry.id} className="border-t border-gray-200 hover:bg-gray-100">
                                     <td className="py-2 text-gray-600">{entry.entry_date}</td>
-                                    <td className="py-2 text-right text-gray-900">{entry.units.toLocaleString()}</td>
-                                    <td className="py-2 text-right text-gray-600">{formatCurrency(entry.unit_value, asset.currency)}</td>
-                                    <td className="py-2 text-right font-medium text-gray-900">{formatCurrency(entry.units * entry.unit_value, asset.currency)}</td>
+                                    <td className="py-2 text-right font-mono tabular-nums">{entry.units.toLocaleString()}</td>
+                                    <td className="py-2 text-right text-gray-600 font-mono tabular-nums">{formatCurrency(entry.unit_value, asset.currency)}</td>
+                                    <td className="py-2 text-right font-semibold font-mono tabular-nums">{formatCurrency(entry.units * entry.unit_value, asset.currency)}</td>
                                     <td className="py-2 text-left pl-4 text-gray-500">{entry.notes || '-'}</td>
-                                    <td className="py-2 text-right space-x-2">
-                                      <button
-                                        onClick={() => openEditEntry(entry)}
-                                        className="text-blue-600 hover:text-blue-800"
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteEntry(asset.id, entry.id)}
-                                        className="text-red-600 hover:text-red-800"
-                                      >
-                                        Delete
-                                      </button>
+                                    <td className="py-2 text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <Button variant="ghost" size="xs" onClick={() => openEditEntry(entry)}>
+                                          Edit
+                                        </Button>
+                                        <Button variant="danger" size="xs" onClick={() => handleDeleteEntry(asset.id, entry.id)}>
+                                          Delete
+                                        </Button>
+                                      </div>
                                     </td>
                                   </tr>
                                 )
@@ -502,84 +501,85 @@ export default function Assets() {
                     </td>
                   </tr>
                 )}
+
                 {/* Update Form Row */}
                 {updateAssetId === asset.id && (
-                  <tr key={`${asset.id}-update`} className="bg-blue-50">
-                    <td colSpan={8} className="px-6 py-4">
-                      <form onSubmit={handleUpdateSubmit} className="flex items-end gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700">Date</label>
-                          <input
+                  <tr key={`${asset.id}-update`} className="bg-primary-50">
+                    <td colSpan={8} className="p-4">
+                      <form onSubmit={handleUpdateSubmit} className="flex flex-wrap items-end gap-4">
+                        <FormField label="Date" className="w-auto">
+                          <Input
                             type="date"
                             value={entryForm.entry_date}
                             onChange={(e) => setEntryForm({ ...entryForm, entry_date: e.target.value })}
-                            className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            className="w-36"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700">Units</label>
-                          <input
+                        </FormField>
+                        <FormField label="Units" className="w-auto">
+                          <Input
                             type="text"
                             inputMode="decimal"
                             value={entryForm.units}
                             onChange={(e) => setEntryForm({ ...entryForm, units: e.target.value })}
                             placeholder="0"
-                            className="mt-1 block w-28 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            className="w-28"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700">Unit Value ({asset.currency})</label>
-                          <input
+                        </FormField>
+                        <FormField label={`Unit Value (${asset.currency})`} className="w-auto">
+                          <Input
                             type="text"
                             inputMode="decimal"
                             value={entryForm.unit_value}
                             onChange={(e) => setEntryForm({ ...entryForm, unit_value: e.target.value })}
                             placeholder="0"
-                            className="mt-1 block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            className="w-32"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700">Notes</label>
-                          <input
+                        </FormField>
+                        <FormField label="Notes" className="w-auto">
+                          <Input
                             type="text"
                             value={entryForm.notes}
                             onChange={(e) => setEntryForm({ ...entryForm, notes: e.target.value })}
-                            className="mt-1 block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            className="w-40"
                           />
+                        </FormField>
+                        <div className="flex items-center gap-3 pb-0.5">
+                          <span className="text-sm text-gray-600">
+                            = <span className="font-semibold font-mono">{formatCurrency(parseNum(entryForm.units) * parseNum(entryForm.unit_value), asset.currency)}</span>
+                          </span>
+                          <Button type="submit" size="sm" loading={addEntryMutation.isPending}>
+                            Save
+                          </Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setUpdateAssetId(null)}>
+                            Cancel
+                          </Button>
                         </div>
-                        <div className="text-sm text-gray-600">
-                          = {formatCurrency(parseNum(entryForm.units) * parseNum(entryForm.unit_value), asset.currency)}
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={addEntryMutation.isPending}
-                          className="bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 disabled:opacity-50 text-sm"
-                        >
-                          {addEntryMutation.isPending ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setUpdateAssetId(null)}
-                          className="text-gray-500 hover:text-gray-700 text-sm"
-                        >
-                          Cancel
-                        </button>
                       </form>
                     </td>
                   </tr>
                 )}
               </>
             ))}
+
             {(!assets || assets.length === 0) && (
               <tr>
-                <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
-                  No assets yet. Add your first asset above.
+                <td colSpan={8}>
+                  <EmptyState
+                    icon="📈"
+                    title="No assets yet"
+                    description="Add your first asset to start tracking your portfolio."
+                    action={
+                      <Button onClick={() => setShowForm(true)}>
+                        + Add Asset
+                      </Button>
+                    }
+                  />
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-      </div>
+      </TableContainer>
     </div>
   )
 }

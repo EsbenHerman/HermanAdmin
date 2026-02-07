@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchHealthDashboard, fetchHealthHistory } from '../api'
 import HealthScoreChart from '../components/HealthScoreChart'
 import WeekdayAveragesChart from '../components/WeekdayAveragesChart'
+import { Card, PageHeader, Section } from '../../../shared/components/ui'
 
 const DATE_RANGES = [
   { label: '1M', days: 30 },
@@ -24,31 +25,60 @@ function ScoreCard({
 }) {
   const getScoreColor = (s?: number) => {
     if (!s) return 'text-gray-400'
-    if (s >= 80) return 'text-green-600'
-    if (s >= 60) return 'text-yellow-600'
-    return 'text-red-600'
+    if (s >= 80) return 'text-success-600'
+    if (s >= 60) return 'text-warning-500'
+    return 'text-danger-600'
+  }
+
+  const getScoreBg = (s?: number) => {
+    if (!s) return 'bg-gray-50'
+    if (s >= 80) return 'bg-success-50'
+    if (s >= 60) return 'bg-warning-50'
+    return 'bg-danger-50'
   }
 
   return (
-    <div className="bg-white overflow-hidden shadow rounded-lg">
-      <div className="p-5">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <span className="text-2xl">{emoji}</span>
-          </div>
-          <div className="ml-5 w-0 flex-1">
-            <dl>
-              <dt className="text-sm font-medium text-gray-500 truncate">{label}</dt>
-              <dd className={`text-2xl font-bold ${getScoreColor(score)}`}>
-                {score ?? '—'}
-              </dd>
-              <dd className="text-sm text-gray-400">
-                7d avg: {avg7d.toFixed(0)}
-              </dd>
-            </dl>
-          </div>
+    <Card>
+      <div className="flex items-start gap-4">
+        <div className={`w-12 h-12 rounded-lg ${getScoreBg(score)} flex items-center justify-center`}>
+          <span className="text-2xl">{emoji}</span>
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-500">{label}</p>
+          <p className={`text-3xl font-bold font-mono tabular-nums ${getScoreColor(score)}`}>
+            {score ?? '—'}
+          </p>
+          <p className="text-sm text-gray-400 mt-1">
+            7d avg: <span className="font-mono">{avg7d.toFixed(0)}</span>
+          </p>
         </div>
       </div>
+    </Card>
+  )
+}
+
+function DateRangeSelector({ 
+  value, 
+  onChange 
+}: { 
+  value: number
+  onChange: (days: number) => void 
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+      {DATE_RANGES.map(({ label, days }) => (
+        <button
+          key={days}
+          onClick={() => onChange(days)}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+            value === days
+              ? 'bg-primary-600 text-white shadow-sm'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   )
 }
@@ -67,54 +97,49 @@ export function Dashboard() {
   })
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading...</div>
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Loading health data...</p>
+        </div>
+      </div>
+    )
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 p-4 rounded-md">
-        <p className="text-red-800">Error loading health data: {(error as Error).message}</p>
-      </div>
+      <Card className="bg-danger-50 border-danger-200">
+        <p className="text-danger-800">Error loading health data: {(error as Error).message}</p>
+      </Card>
     )
   }
 
   if (!dashboard || !dashboard.latest_day) {
     return (
-      <div className="text-center py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Health Dashboard</h1>
-        <p className="text-gray-500">No health data yet. Run the Oura sync to get started.</p>
+      <div className="space-y-6">
+        <PageHeader title="Health Dashboard" />
+        <Card className="text-center py-12">
+          <span className="text-4xl mb-4 block">💪</span>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No health data yet</h3>
+          <p className="text-gray-500">Run the Oura sync to get started.</p>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Health Dashboard</h1>
-          <p className="text-sm text-gray-500">Latest data: {dashboard.latest_day}</p>
-        </div>
-        
-        {/* Date Range Selector */}
-        <div className="flex rounded-lg overflow-hidden border border-gray-300">
-          {DATE_RANGES.map(({ label, days }) => (
-            <button
-              key={days}
-              onClick={() => setSelectedDays(days)}
-              className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                selectedDays === days
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              } ${days !== 30 ? 'border-l border-gray-300' : ''}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Health Dashboard"
+        subtitle={`Latest data: ${dashboard.latest_day}`}
+        actions={
+          <DateRangeSelector value={selectedDays} onChange={setSelectedDays} />
+        }
+      />
 
       {/* Score Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <ScoreCard
           emoji="😴"
           label="Sleep Score"
@@ -136,17 +161,21 @@ export function Dashboard() {
       </div>
 
       {/* Score History Chart */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Score History</h2>
-        <HealthScoreChart history={history || []} />
-      </div>
+      <Section title="Score History">
+        <Card>
+          <HealthScoreChart history={history || []} />
+        </Card>
+      </Section>
 
       {/* Weekday Averages Chart */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Weekday Averages</h2>
-        <p className="text-sm text-gray-500 mb-4">Average scores by day of week</p>
-        <WeekdayAveragesChart history={history || []} />
-      </div>
+      <Section 
+        title="Weekday Averages"
+        subtitle="Average scores by day of week"
+      >
+        <Card>
+          <WeekdayAveragesChart history={history || []} />
+        </Card>
+      </Section>
     </div>
   )
 }

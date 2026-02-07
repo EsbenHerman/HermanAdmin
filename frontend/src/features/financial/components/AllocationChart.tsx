@@ -6,12 +6,21 @@ interface Props {
   assets: AssetWithValue[]
 }
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4']
+// Mercury-style coordinated palette
+const COLORS = [
+  '#5a6ff2', // primary
+  '#10b981', // success
+  '#f59e0b', // warning
+  '#8b5cf6', // violet
+  '#06b6d4', // cyan
+  '#ec4899', // pink
+  '#3b82f6', // blue
+]
 
 export default function AllocationChart({ assets }: Props) {
   if (!assets || assets.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="flex items-center justify-center h-[300px] text-gray-500">
         No assets yet.
       </div>
     )
@@ -31,7 +40,7 @@ export default function AllocationChart({ assets }: Props) {
 
   if (data.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="flex items-center justify-center h-[300px] text-gray-500">
         No asset values recorded yet.
       </div>
     )
@@ -44,21 +53,35 @@ export default function AllocationChart({ assets }: Props) {
           data={data}
           cx="50%"
           cy="50%"
-          innerRadius={60}
+          innerRadius={70}
           outerRadius={100}
-          paddingAngle={2}
+          paddingAngle={3}
           dataKey="value"
           label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
           labelLine={false}
         >
           {data.map((_, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            <Cell 
+              key={`cell-${index}`} 
+              fill={COLORS[index % COLORS.length]} 
+              stroke="white"
+              strokeWidth={2}
+            />
           ))}
         </Pie>
         <Tooltip 
           formatter={(value) => [formatSEK(typeof value === 'number' ? value : 0), 'Value']}
+          contentStyle={{ 
+            backgroundColor: 'white', 
+            border: '1px solid #e8e8e8',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'
+          }}
         />
-        <Legend />
+        <Legend 
+          iconType="circle"
+          wrapperStyle={{ paddingTop: '16px' }}
+        />
       </PieChart>
     </ResponsiveContainer>
   )
