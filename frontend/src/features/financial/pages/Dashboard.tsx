@@ -54,13 +54,13 @@ export default function Dashboard() {
         actions={
           <>
             <Link to="/financial/assets">
-              <Button variant="secondary">
-                <span>📈</span> Assets
+              <Button variant="secondary" size="sm">
+                <span>📈</span> <span className="hidden sm:inline">Assets</span>
               </Button>
             </Link>
             <Link to="/financial/debts">
-              <Button variant="secondary">
-                <span>📉</span> Debts
+              <Button variant="secondary" size="sm">
+                <span>📉</span> <span className="hidden sm:inline">Debts</span>
               </Button>
             </Link>
           </>
@@ -123,11 +123,11 @@ export default function Dashboard() {
       {Object.keys(data.by_category).length > 0 && (
         <Section title="By Category">
           <Card>
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-3 lg:grid-cols-4">
               {Object.entries(data.by_category).map(([category, value]) => (
-                <div key={category} className="border-l-2 border-primary-500 pl-4">
-                  <p className="text-sm font-medium text-gray-500">{category}</p>
-                  <p className="mt-1 text-lg font-semibold text-gray-900 font-mono">
+                <div key={category} className="border-l-2 border-primary-500 pl-3 sm:pl-4">
+                  <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">{category}</p>
+                  <p className="mt-0.5 sm:mt-1 text-sm sm:text-lg font-semibold text-gray-900 font-mono">
                     {formatSEK(value)}
                   </p>
                 </div>

@@ -29,7 +29,14 @@ const features: FeatureCard[] = [
     description: 'View and manage your schedule.',
     icon: '📅',
     path: '/calendar',
-    status: 'coming-soon',
+    status: 'active',
+  },
+  {
+    title: 'People',
+    description: 'Track friends and stay in touch.',
+    icon: '👥',
+    path: '/people',
+    status: 'active',
   },
   {
     title: 'Tasks',

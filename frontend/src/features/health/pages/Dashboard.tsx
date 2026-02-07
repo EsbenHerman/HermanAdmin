@@ -38,18 +38,18 @@ function ScoreCard({
   }
 
   return (
-    <Card>
-      <div className="flex items-start gap-4">
-        <div className={`w-12 h-12 rounded-lg ${getScoreBg(score)} flex items-center justify-center`}>
-          <span className="text-2xl">{emoji}</span>
+    <Card padding="sm">
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg ${getScoreBg(score)} flex items-center justify-center flex-shrink-0`}>
+          <span className="text-xl sm:text-2xl">{emoji}</span>
         </div>
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-500">{label}</p>
-          <p className={`text-3xl font-bold font-mono tabular-nums ${getScoreColor(score)}`}>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-gray-500">{label}</p>
+          <p className={`text-2xl sm:text-3xl font-bold font-mono tabular-nums ${getScoreColor(score)}`}>
             {score ?? '—'}
           </p>
-          <p className="text-sm text-gray-400 mt-1">
-            7d avg: <span className="font-mono">{avg7d.toFixed(0)}</span>
+          <p className="text-xs sm:text-sm text-gray-400 mt-0.5 sm:mt-1">
+            7d: <span className="font-mono">{avg7d.toFixed(0)}</span>
           </p>
         </div>
       </div>

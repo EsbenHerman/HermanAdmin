@@ -11,8 +11,10 @@ import (
 
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/api"
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/core"
+	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/calendar"
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/financial"
 	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/health"
+	"github.com/EsbenHerman/HermanAdmin/backend/internal/features/people"
 	"github.com/joho/godotenv"
 )
 
@@ -39,8 +41,12 @@ func main() {
 	if err := health.Migrate(context.Background(), pool); err != nil {
 		log.Fatalf("Failed to run health migrations: %v", err)
 	}
-	// Future features run migrations here:
-	// tasks.Migrate(ctx, pool)
+	if err := calendar.Migrate(context.Background(), pool); err != nil {
+		log.Fatalf("Failed to run calendar migrations: %v", err)
+	}
+	if err := people.Migrate(context.Background(), pool); err != nil {
+		log.Fatalf("Failed to run people migrations: %v", err)
+	}
 
 	// Create router
 	router := api.NewRouter(pool)

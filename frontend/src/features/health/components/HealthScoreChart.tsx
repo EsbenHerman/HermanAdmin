@@ -91,7 +91,7 @@ export default function HealthScoreChart({ history }: Props) {
 
   if (!history || history.length === 0) {
     return (
-      <div className="h-64 flex items-center justify-center text-gray-500">
+      <div className="h-48 sm:h-64 flex items-center justify-center text-gray-500 text-sm">
         No history data available
       </div>
     )
@@ -100,7 +100,7 @@ export default function HealthScoreChart({ history }: Props) {
   const renderLegend = (props: any) => {
     const { payload } = props
     return (
-      <div className="flex justify-center gap-4 mt-4">
+      <div className="flex justify-center gap-2 sm:gap-4 mt-3 sm:mt-4 flex-wrap">
         {payload.map((entry: any, index: number) => {
           const key = entry.dataKey as SeriesKey
           const isVisible = visibleSeries[key]
@@ -108,17 +108,17 @@ export default function HealthScoreChart({ history }: Props) {
             <button
               key={`legend-${index}`}
               onClick={() => handleLegendClick(entry.dataKey)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all ${
                 isVisible 
                   ? 'opacity-100 hover:bg-gray-100' 
                   : 'opacity-40 line-through hover:bg-gray-50'
               }`}
             >
               <span
-                className="w-3 h-3 rounded-full"
+                className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
                 style={{ backgroundColor: entry.color }}
               />
-              <span className="text-sm font-medium text-gray-700">{entry.value}</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-700">{entry.value}</span>
             </button>
           )
         })}
@@ -129,13 +129,13 @@ export default function HealthScoreChart({ history }: Props) {
   return (
     <div>
       {/* View Mode Toggle */}
-      <div className="flex justify-end mb-4">
-        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+      <div className="flex justify-end mb-3 sm:mb-4">
+        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 sm:p-1">
           {VIEW_MODES.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => setViewMode(value)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+              className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${
                 viewMode === value
                   ? 'bg-primary-600 text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
@@ -147,21 +147,23 @@ export default function HealthScoreChart({ history }: Props) {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data}>
+      <ResponsiveContainer width="100%" height="100%" minHeight={200} className="!h-[200px] sm:!h-[300px]">
+        <LineChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e8" />
           <XAxis 
             dataKey="displayDay" 
-            tick={{ fontSize: 12, fill: '#737373' }}
+            tick={{ fontSize: 10, fill: '#737373' }}
             axisLine={{ stroke: '#e8e8e8' }}
             tickLine={{ stroke: '#e8e8e8' }}
             interval="preserveStartEnd"
+            tickMargin={8}
           />
           <YAxis 
             domain={[0, 100]} 
-            tick={{ fontSize: 12, fill: '#737373' }}
+            tick={{ fontSize: 10, fill: '#737373' }}
             axisLine={{ stroke: '#e8e8e8' }}
             tickLine={{ stroke: '#e8e8e8' }}
+            width={30}
           />
           <Tooltip 
             formatter={(value) => [value ?? 0, '']}
@@ -170,7 +172,8 @@ export default function HealthScoreChart({ history }: Props) {
               backgroundColor: 'white', 
               border: '1px solid #e8e8e8',
               borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
+              fontSize: '12px'
             }}
           />
           <Legend content={renderLegend} />

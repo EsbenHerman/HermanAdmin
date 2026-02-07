@@ -136,13 +136,13 @@ export function MetricCard({ label, value, icon, trend, trendValue, className = 
   const trendColor = trend === 'up' ? 'metric-positive' : trend === 'down' ? 'metric-negative' : 'text-gray-500'
   
   return (
-    <Card className={className}>
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="metric-label">{label}</p>
-          <p className="metric-value">{value}</p>
+    <Card className={className} padding="sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 sm:space-y-1 min-w-0">
+          <p className="metric-label text-xs sm:text-sm">{label}</p>
+          <p className="metric-value text-lg sm:text-2xl truncate">{value}</p>
           {trendValue && (
-            <p className={`text-sm font-medium ${trendColor}`}>
+            <p className={`text-xs sm:text-sm font-medium ${trendColor}`}>
               {trend === 'up' && '↑ '}
               {trend === 'down' && '↓ '}
               {trendValue}
@@ -150,7 +150,7 @@ export function MetricCard({ label, value, icon, trend, trendValue, className = 
           )}
         </div>
         {icon && (
-          <span className="text-2xl opacity-80">{icon}</span>
+          <span className="text-xl sm:text-2xl opacity-80 flex-shrink-0">{icon}</span>
         )}
       </div>
     </Card>
@@ -206,21 +206,23 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, backLink, backLabel = '← Back', actions }: PageHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-      <div>
-        {backLink && (
-          <Link to={backLink} className="link-subtle text-sm mb-1 inline-block hover:underline">
-            {backLabel}
-          </Link>
-        )}
-        <h1 className="page-title">{title}</h1>
-        {subtitle && <p className="section-subtitle mt-1">{subtitle}</p>}
-      </div>
-      {actions && (
-        <div className="flex items-center gap-3">
-          {actions}
+    <div className="flex flex-col gap-3 mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          {backLink && (
+            <Link to={backLink} className="link-subtle text-sm mb-1 inline-block hover:underline">
+              {backLabel}
+            </Link>
+          )}
+          <h1 className="page-title text-xl sm:text-2xl truncate">{title}</h1>
+          {subtitle && <p className="section-subtitle mt-0.5 sm:mt-1 text-xs sm:text-sm">{subtitle}</p>}
         </div>
-      )}
+        {actions && (
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            {actions}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

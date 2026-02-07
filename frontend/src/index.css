@@ -15,16 +15,39 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent tap highlight on iOS */
+    -webkit-tap-highlight-color: transparent;
   }
   
   body {
     @apply bg-gray-50 text-gray-900 font-sans;
+    /* Safe area insets for notched devices */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Better focus styles */
   *:focus-visible {
     @apply outline-none ring-2 ring-offset-2;
     --tw-ring-color: var(--color-primary-500);
+  }
+
+  /* Prevent text selection on interactive elements */
+  button, a {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Smooth scrolling */
+  * {
+    scroll-behavior: smooth;
+  }
+
+  /* Better touch targets - minimum 44px */
+  @media (pointer: coarse) {
+    button, a, input, select {
+      min-height: 44px;
+    }
   }
 }
 

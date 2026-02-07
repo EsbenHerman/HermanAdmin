@@ -16,7 +16,7 @@ const COLORS = {
 export default function NetWorthChart({ history }: Props) {
   if (!history || history.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[300px] text-gray-500">
+      <div className="flex items-center justify-center h-[200px] sm:h-[300px] text-gray-500 text-sm text-center px-4">
         No historical data yet. Add entries with different dates to see the trend.
       </div>
     )
@@ -30,20 +30,23 @@ export default function NetWorthChart({ history }: Props) {
   }))
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={200} className="!h-[200px] sm:!h-[300px]">
+      <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e8" />
         <XAxis 
           dataKey="date" 
-          tick={{ fontSize: 12, fill: '#737373' }} 
+          tick={{ fontSize: 10, fill: '#737373' }} 
           axisLine={{ stroke: '#e8e8e8' }}
           tickLine={{ stroke: '#e8e8e8' }}
+          interval="preserveStartEnd"
+          tickMargin={8}
         />
         <YAxis 
           tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
-          tick={{ fontSize: 12, fill: '#737373' }}
+          tick={{ fontSize: 10, fill: '#737373' }}
           axisLine={{ stroke: '#e8e8e8' }}
           tickLine={{ stroke: '#e8e8e8' }}
+          width={45}
         />
         <Tooltip 
           formatter={(value) => formatSEK(typeof value === 'number' ? value : 0)}

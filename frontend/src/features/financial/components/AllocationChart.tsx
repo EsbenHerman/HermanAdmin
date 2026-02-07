@@ -20,7 +20,7 @@ const COLORS = [
 export default function AllocationChart({ assets }: Props) {
   if (!assets || assets.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[300px] text-gray-500">
+      <div className="flex items-center justify-center h-[200px] sm:h-[300px] text-gray-500 text-sm">
         No assets yet.
       </div>
     )
@@ -40,25 +40,23 @@ export default function AllocationChart({ assets }: Props) {
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[300px] text-gray-500">
+      <div className="flex items-center justify-center h-[200px] sm:h-[300px] text-gray-500 text-sm">
         No asset values recorded yet.
       </div>
     )
   }
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={200} className="!h-[200px] sm:!h-[300px]">
       <PieChart>
         <Pie
           data={data}
           cx="50%"
           cy="50%"
-          innerRadius={70}
-          outerRadius={100}
+          innerRadius={50}
+          outerRadius={75}
           paddingAngle={3}
           dataKey="value"
-          label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-          labelLine={false}
         >
           {data.map((_, index) => (
             <Cell 
@@ -75,12 +73,14 @@ export default function AllocationChart({ assets }: Props) {
             backgroundColor: 'white', 
             border: '1px solid #e8e8e8',
             borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
+            fontSize: '12px'
           }}
         />
         <Legend 
           iconType="circle"
-          wrapperStyle={{ paddingTop: '16px' }}
+          iconSize={8}
+          wrapperStyle={{ paddingTop: '8px', fontSize: '12px' }}
         />
       </PieChart>
     </ResponsiveContainer>

@@ -94,7 +94,7 @@ export default function WeekdayAveragesChart({ history }: Props) {
 
   if (!history || history.length === 0) {
     return (
-      <div className="h-48 flex items-center justify-center text-gray-500">
+      <div className="h-40 sm:h-48 flex items-center justify-center text-gray-500 text-sm">
         No data available
       </div>
     )
@@ -103,7 +103,7 @@ export default function WeekdayAveragesChart({ history }: Props) {
   const renderLegend = (props: any) => {
     const { payload } = props
     return (
-      <div className="flex justify-center gap-4 mt-4">
+      <div className="flex justify-center gap-2 sm:gap-4 mt-3 sm:mt-4 flex-wrap">
         {payload.map((entry: any, index: number) => {
           const key = entry.dataKey as SeriesKey
           const isVisible = visibleSeries[key]
@@ -111,17 +111,17 @@ export default function WeekdayAveragesChart({ history }: Props) {
             <button
               key={`legend-${index}`}
               onClick={() => handleLegendClick(entry.dataKey)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all ${
                 isVisible 
                   ? 'opacity-100 hover:bg-gray-100' 
                   : 'opacity-40 line-through hover:bg-gray-50'
               }`}
             >
               <span
-                className="w-3 h-3 rounded-full"
+                className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
                 style={{ backgroundColor: entry.color }}
               />
-              <span className="text-sm font-medium text-gray-700">{entry.value}</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-700">{entry.value}</span>
             </button>
           )
         })}
@@ -130,20 +130,22 @@ export default function WeekdayAveragesChart({ history }: Props) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={weekdayAverages}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={180} className="!h-[180px] sm:!h-[220px]">
+      <BarChart data={weekdayAverages} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e8" />
         <XAxis 
           dataKey="weekday" 
-          tick={{ fontSize: 12, fill: '#737373' }}
+          tick={{ fontSize: 10, fill: '#737373' }}
           axisLine={{ stroke: '#e8e8e8' }}
           tickLine={{ stroke: '#e8e8e8' }}
+          tickMargin={8}
         />
         <YAxis 
           domain={[0, 100]} 
-          tick={{ fontSize: 12, fill: '#737373' }}
+          tick={{ fontSize: 10, fill: '#737373' }}
           axisLine={{ stroke: '#e8e8e8' }}
           tickLine={{ stroke: '#e8e8e8' }}
+          width={30}
         />
         <Tooltip 
           formatter={(value) => [value ?? 0, '']}
@@ -151,7 +153,8 @@ export default function WeekdayAveragesChart({ history }: Props) {
             backgroundColor: 'white', 
             border: '1px solid #e8e8e8',
             borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
+            fontSize: '12px'
           }}
         />
         <Legend content={renderLegend} />
@@ -162,7 +165,7 @@ export default function WeekdayAveragesChart({ history }: Props) {
             name={SERIES_CONFIG[key].name}
             fill={SERIES_CONFIG[key].color}
             hide={!visibleSeries[key]}
-            radius={[4, 4, 0, 0]}
+            radius={[3, 3, 0, 0]}
           />
         ))}
       </BarChart>
