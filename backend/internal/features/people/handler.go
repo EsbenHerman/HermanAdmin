@@ -209,10 +209,10 @@ func (h *Handler) ListPeople(w http.ResponseWriter, r *http.Request) {
 	if groupID != "" {
 		rows, err = h.db.Query(ctx, `
 			SELECT p.id, p.name, p.nickname, p.relationship, p.email, p.phone,
-			       p.birthday, p.birthday_lunar, p.location, p.how_met, p.notes,
+			       p.birthday::text, p.birthday_lunar, p.location, p.how_met, p.notes,
 			       p.contact_frequency, p.current_streak, p.longest_streak,
 			       p.introduced_by_id, p.photo_url, p.created_at,
-			       (SELECT MAX(date) FROM interactions WHERE person_id = p.id) as last_contact
+			       (SELECT MAX(date)::text FROM interactions WHERE person_id = p.id) as last_contact
 			FROM people p
 			INNER JOIN person_group_members pgm ON pgm.person_id = p.id
 			WHERE pgm.group_id = $1
@@ -221,10 +221,10 @@ func (h *Handler) ListPeople(w http.ResponseWriter, r *http.Request) {
 	} else {
 		rows, err = h.db.Query(ctx, `
 			SELECT p.id, p.name, p.nickname, p.relationship, p.email, p.phone,
-			       p.birthday, p.birthday_lunar, p.location, p.how_met, p.notes,
+			       p.birthday::text, p.birthday_lunar, p.location, p.how_met, p.notes,
 			       p.contact_frequency, p.current_streak, p.longest_streak,
 			       p.introduced_by_id, p.photo_url, p.created_at,
-			       (SELECT MAX(date) FROM interactions WHERE person_id = p.id) as last_contact
+			       (SELECT MAX(date)::text FROM interactions WHERE person_id = p.id) as last_contact
 			FROM people p
 			ORDER BY p.name ASC
 		`)
@@ -299,7 +299,7 @@ func (h *Handler) GetPerson(w http.ResponseWriter, r *http.Request) {
 	var p Person
 	err = h.db.QueryRow(ctx, `
 		SELECT p.id, p.name, p.nickname, p.relationship, p.email, p.phone,
-		       p.birthday, p.birthday_lunar, p.location, p.how_met, p.notes,
+		       p.birthday::text, p.birthday_lunar, p.location, p.how_met, p.notes,
 		       p.contact_frequency, p.current_streak, p.longest_streak,
 		       p.introduced_by_id, p.photo_url, p.created_at,
 		       introducer.name
@@ -520,7 +520,7 @@ func (h *Handler) CreatePerson(w http.ResponseWriter, r *http.Request) {
 	err := h.db.QueryRow(ctx, `
 		INSERT INTO people (name, nickname, relationship, email, phone, birthday, birthday_lunar, location, how_met, notes, contact_frequency, introduced_by_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-		RETURNING id, name, nickname, relationship, email, phone, birthday, birthday_lunar, location, how_met, notes, contact_frequency, introduced_by_id, photo_url, created_at
+		RETURNING id, name, nickname, relationship, email, phone, birthday::text, birthday_lunar, location, how_met, notes, contact_frequency, introduced_by_id, photo_url, created_at
 	`,
 		input.Name, input.Nickname, input.Relationship, input.Email, input.Phone,
 		input.Birthday, input.BirthdayLunar, input.Location, input.HowMet, input.Notes,
@@ -531,6 +531,11 @@ func (h *Handler) CreatePerson(w http.ResponseWriter, r *http.Request) {
 		&p.ContactFrequency, &p.IntroducedByID, &p.PhotoURL, &p.CreatedAt,
 	)
 	if err != nil {
+		// Check for duplicate name error
+		if strings.Contains(err.Error(), "idx_people_name_unique") {
+			http.Error(w, "A person with this name already exists", http.StatusConflict)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -567,7 +572,7 @@ func (h *Handler) UpdatePerson(w http.ResponseWriter, r *http.Request) {
 			birthday = $7, birthday_lunar = $8, location = $9, how_met = $10, notes = $11,
 			contact_frequency = $12, introduced_by_id = $13
 		WHERE id = $1
-		RETURNING id, name, nickname, relationship, email, phone, birthday, birthday_lunar, location, how_met, notes, contact_frequency, introduced_by_id, photo_url, created_at
+		RETURNING id, name, nickname, relationship, email, phone, birthday::text, birthday_lunar, location, how_met, notes, contact_frequency, introduced_by_id, photo_url, created_at
 	`,
 		id, input.Name, input.Nickname, input.Relationship, input.Email, input.Phone,
 		input.Birthday, input.BirthdayLunar, input.Location, input.HowMet, input.Notes,
@@ -578,6 +583,11 @@ func (h *Handler) UpdatePerson(w http.ResponseWriter, r *http.Request) {
 		&p.ContactFrequency, &p.IntroducedByID, &p.PhotoURL, &p.CreatedAt,
 	)
 	if err != nil {
+		// Check for duplicate name error
+		if strings.Contains(err.Error(), "idx_people_name_unique") {
+			http.Error(w, "A person with this name already exists", http.StatusConflict)
+			return
+		}
 		http.Error(w, "Person not found", http.StatusNotFound)
 		return
 	}
@@ -693,7 +703,7 @@ func (h *Handler) GetOverdue(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) calculateOverdue(ctx context.Context) []OverduePerson {
 	rows, err := h.db.Query(ctx, `
 		SELECT p.id, p.name, p.nickname, p.contact_frequency,
-		       (SELECT MAX(date) FROM interactions WHERE person_id = p.id) as last_contact
+		       (SELECT MAX(date)::text FROM interactions WHERE person_id = p.id) as last_contact
 		FROM people p
 		WHERE p.contact_frequency != 'none'
 		ORDER BY last_contact ASC NULLS FIRST
@@ -1254,7 +1264,7 @@ func (h *Handler) GetSuggestions(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.db.Query(ctx, `
 		SELECT p.id, p.name, p.nickname, p.contact_frequency, p.current_streak, p.birthday,
-		       (SELECT MAX(date) FROM interactions WHERE person_id = p.id) as last_contact
+		       (SELECT MAX(date)::text FROM interactions WHERE person_id = p.id) as last_contact
 		FROM people p
 		WHERE p.contact_frequency != 'none'
 		ORDER BY p.name
@@ -1374,7 +1384,7 @@ func (h *Handler) GetReconnect(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.db.Query(ctx, `
 		SELECT p.id, p.name, p.nickname,
-		       (SELECT MAX(date) FROM interactions WHERE person_id = p.id) as last_contact
+		       (SELECT MAX(date)::text FROM interactions WHERE person_id = p.id) as last_contact
 		FROM people p
 		WHERE p.contact_frequency = 'none' OR p.relationship = 'acquaintance'
 		ORDER BY last_contact ASC NULLS FIRST

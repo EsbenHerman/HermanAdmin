@@ -39,7 +39,7 @@ export default function Dashboard() {
   if (error) {
     return (
       <Card className="bg-danger-50 border-danger-200">
-        <p className="text-danger-800">Error loading dashboard: {(error as Error).message}</p>
+        <p className="text-danger-800">Error loading dashboard: {(error).message}</p>
       </Card>
     )
   }
@@ -93,7 +93,7 @@ export default function Dashboard() {
         <Section title="Net Worth Over Time">
           <Card>
             <button
-              onClick={() => setShowDetailedChart(true)}
+              onClick={() => { setShowDetailedChart(true); }}
               className="w-full text-left group"
             >
               <div className="flex items-center justify-between mb-4">
@@ -116,7 +116,7 @@ export default function Dashboard() {
       {/* Detailed Chart Modal */}
       <DetailedChartModal 
         isOpen={showDetailedChart} 
-        onClose={() => setShowDetailedChart(false)} 
+        onClose={() => { setShowDetailedChart(false); }} 
       />
 
       {/* Category Breakdown */}

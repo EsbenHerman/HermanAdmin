@@ -1,5 +1,9 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
+import { Line } from 'react-chartjs-2'
+import type { ChartOptions, ChartData } from 'chart.js'
+import '../../../lib/chartjs'
+import { tooltipStyle } from '../../../lib/chartjs'
 import { fetchDetailedHistory } from '../api'
 import { formatSEK } from '../utils'
 import { Button, Card } from '../../../shared/components/ui'
@@ -29,29 +33,175 @@ export default function DetailedChartModal({ isOpen, onClose }: Props) {
     enabled: isOpen,
   })
 
+  const { chartData, assetNames, debtNames } = useMemo((): {
+    chartData: ChartData<'line'> | null
+    assetNames: string[]
+    debtNames: string[]
+  } => {
+    if (!data?.history) {
+      return { chartData: null, assetNames: [], debtNames: [] }
+    }
+
+    const processed = data.history.map(h => {
+      const row: Record<string, number | string> = {
+        date: new Date(h.date).toLocaleDateString('sv-SE'),
+        netWorth: h.net_worth,
+        totalAssets: h.total_assets,
+        totalDebt: -h.total_debt,
+      }
+      
+      for (const [name, value] of Object.entries(h.assets)) {
+        row[`asset_${name}`] = value
+      }
+      
+      for (const [name, value] of Object.entries(h.debts)) {
+        row[`debt_${name}`] = -value
+      }
+      
+      return row
+    })
+
+    const assetNamesData = data.asset_names || []
+    const debtNamesData = data.debt_names || []
+
+    // Build Chart.js dataset
+    const datasets = [
+      {
+        label: 'Net Worth',
+        data: processed.map(r => r.netWorth as number),
+        borderColor: '#5a6ff2',
+        backgroundColor: '#5a6ff2',
+        borderWidth: 3,
+        pointRadius: 0,
+        tension: 0.3,
+      },
+      {
+        label: 'Total Assets',
+        data: processed.map(r => r.totalAssets as number),
+        borderColor: '#10B981',
+        backgroundColor: '#10B981',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        pointRadius: 0,
+        tension: 0.3,
+      },
+      {
+        label: 'Total Debt',
+        data: processed.map(r => r.totalDebt as number),
+        borderColor: '#EF4444',
+        backgroundColor: '#EF4444',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        pointRadius: 0,
+        tension: 0.3,
+      },
+      ...assetNamesData.map((name, i) => ({
+        label: name,
+        data: processed.map(r => (r[`asset_${name}`] ?? null) as number | null),
+        borderColor: ASSET_COLORS[i % ASSET_COLORS.length],
+        backgroundColor: ASSET_COLORS[i % ASSET_COLORS.length],
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.3,
+      })),
+      ...debtNamesData.map((name, i) => ({
+        label: name,
+        data: processed.map(r => (r[`debt_${name}`] ?? null) as number | null),
+        borderColor: DEBT_COLORS[i % DEBT_COLORS.length],
+        backgroundColor: DEBT_COLORS[i % DEBT_COLORS.length],
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.3,
+      })),
+    ]
+
+    return {
+      chartData: {
+        labels: processed.map(r => r.date as string),
+        datasets,
+      },
+      assetNames: assetNamesData,
+      debtNames: debtNamesData,
+    }
+  }, [data])
+
+  const options: ChartOptions<'line'> = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 12,
+          font: { size: 11 },
+        },
+      },
+      tooltip: {
+        ...tooltipStyle,
+        callbacks: {
+          label: (ctx) => {
+            const value = ctx.parsed.y ?? 0
+            const label = ctx.dataset.label || ''
+            const isDebt = debtNames.includes(label) || label === 'Total Debt'
+            const displayValue = isDebt ? formatSEK(Math.abs(value)) : formatSEK(value)
+            return `${label}: ${displayValue}`
+          },
+        },
+      },
+      annotation: {
+        annotations: {
+          zeroLine: {
+            type: 'line' as const,
+            yMin: 0,
+            yMax: 0,
+            borderColor: '#a8a8a8',
+            borderWidth: 1,
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: '#e8e8e8',
+        },
+        ticks: {
+          font: { size: 11 },
+          color: '#737373',
+        },
+        border: {
+          color: '#e8e8e8',
+        },
+      },
+      y: {
+        grid: {
+          color: '#e8e8e8',
+        },
+        ticks: {
+          font: { size: 11 },
+          color: '#737373',
+          callback: (value) => {
+            const v = Number(value)
+            const abs = Math.abs(v)
+            if (abs >= 1000000) return `${(v / 1000000).toFixed(1)}M`
+            if (abs >= 1000) return `${(v / 1000).toFixed(0)}k`
+            return String(v)
+          },
+        },
+        border: {
+          color: '#e8e8e8',
+        },
+      },
+    },
+  }), [debtNames])
+
   if (!isOpen) return null
-
-  const chartData = data?.history.map(h => {
-    const row: Record<string, number | string> = {
-      date: new Date(h.date).toLocaleDateString('sv-SE'),
-      netWorth: h.net_worth,
-      totalAssets: h.total_assets,
-      totalDebt: -h.total_debt,
-    }
-    
-    for (const [name, value] of Object.entries(h.assets)) {
-      row[`asset_${name}`] = value
-    }
-    
-    for (const [name, value] of Object.entries(h.debts)) {
-      row[`debt_${name}`] = -value
-    }
-    
-    return row
-  }) || []
-
-  const assetNames = data?.asset_names || []
-  const debtNames = data?.debt_names || []
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -75,110 +225,16 @@ export default function DetailedChartModal({ isOpen, onClose }: Props) {
                 <p className="text-sm text-gray-500">Loading detailed history...</p>
               </div>
             </div>
-          ) : !chartData.length ? (
+          ) : !chartData ? (
             <div className="flex items-center justify-center py-16 text-gray-500">
               No historical data yet. Add entries with different dates to see the trend.
             </div>
           ) : (
             <>
               <Card padding="lg" className="mb-6">
-                <ResponsiveContainer width="100%" height={500}>
-                  <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e8" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 11, fill: '#737373' }}
-                      axisLine={{ stroke: '#e8e8e8' }}
-                    />
-                    <YAxis 
-                      tickFormatter={(value) => {
-                        const abs = Math.abs(value)
-                        if (abs >= 1000000) return `${(value / 1000000).toFixed(1)}M`
-                        if (abs >= 1000) return `${(value / 1000).toFixed(0)}k`
-                        return value.toString()
-                      }}
-                      tick={{ fontSize: 11, fill: '#737373' }}
-                      axisLine={{ stroke: '#e8e8e8' }}
-                    />
-                    <Tooltip 
-                      formatter={(value, name) => {
-                        const numValue = typeof value === 'number' ? value : 0
-                        const strName = String(name)
-                        const displayValue = strName.startsWith('debt_') || strName === 'totalDebt' 
-                          ? formatSEK(Math.abs(numValue))
-                          : formatSEK(numValue)
-                        const displayName = strName.replace('asset_', '').replace('debt_', '')
-                        return [displayValue, displayName]
-                      }}
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
-                        border: '1px solid #e8e8e8',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'
-                      }}
-                    />
-                    <Legend 
-                      wrapperStyle={{ paddingTop: '20px' }}
-                      formatter={(value: string) => value.replace('asset_', '').replace('debt_', '')}
-                      iconType="circle"
-                    />
-                    <ReferenceLine y={0} stroke="#a8a8a8" strokeWidth={1} />
-                    
-                    {/* Aggregate lines */}
-                    <Line 
-                      type="monotone" 
-                      dataKey="netWorth" 
-                      name="Net Worth"
-                      stroke="#5a6ff2"
-                      strokeWidth={3}
-                      dot={false}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="totalAssets" 
-                      name="Total Assets"
-                      stroke="#10B981"
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={false}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="totalDebt" 
-                      name="Total Debt"
-                      stroke="#EF4444"
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={false}
-                    />
-                    
-                    {/* Individual asset lines */}
-                    {assetNames.map((name, i) => (
-                      <Line
-                        key={`asset_${name}`}
-                        type="monotone"
-                        dataKey={`asset_${name}`}
-                        name={`asset_${name}`}
-                        stroke={ASSET_COLORS[i % ASSET_COLORS.length]}
-                        strokeWidth={1}
-                        dot={false}
-                      />
-                    ))}
-                    
-                    {/* Individual debt lines */}
-                    {debtNames.map((name, i) => (
-                      <Line
-                        key={`debt_${name}`}
-                        type="monotone"
-                        dataKey={`debt_${name}`}
-                        name={`debt_${name}`}
-                        stroke={DEBT_COLORS[i % DEBT_COLORS.length]}
-                        strokeWidth={1}
-                        dot={false}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="h-[500px]">
+                  <Line data={chartData} options={options} />
+                </div>
               </Card>
 
               {/* Legend cards */}

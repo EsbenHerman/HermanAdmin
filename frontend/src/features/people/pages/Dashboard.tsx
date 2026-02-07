@@ -70,7 +70,7 @@ function AddPersonModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
               <Input
                 id="name"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={e => { setName(e.target.value); }}
                 placeholder="Full name"
                 required
               />
@@ -79,7 +79,7 @@ function AddPersonModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
               <Input
                 id="nickname"
                 value={nickname}
-                onChange={e => setNickname(e.target.value)}
+                onChange={e => { setNickname(e.target.value); }}
                 placeholder="What you call them"
               />
             </FormField>
@@ -90,7 +90,7 @@ function AddPersonModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
               <Select
                 id="relationship"
                 value={relationship}
-                onChange={e => setRelationship(e.target.value as RelationshipType)}
+                onChange={e => { setRelationship(e.target.value as RelationshipType); }}
               >
                 {Object.entries(RELATIONSHIP_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
@@ -101,7 +101,7 @@ function AddPersonModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
               <Select
                 id="frequency"
                 value={contactFrequency}
-                onChange={e => setContactFrequency(e.target.value as ContactFrequency)}
+                onChange={e => { setContactFrequency(e.target.value as ContactFrequency); }}
               >
                 {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
@@ -116,14 +116,14 @@ function AddPersonModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
                 id="birthday"
                 type="date"
                 value={birthday}
-                onChange={e => setBirthday(e.target.value)}
+                onChange={e => { setBirthday(e.target.value); }}
               />
             </FormField>
             <FormField label="Location" htmlFor="location">
               <Input
                 id="location"
                 value={location}
-                onChange={e => setLocation(e.target.value)}
+                onChange={e => { setLocation(e.target.value); }}
                 placeholder="City, Country"
               />
             </FormField>
@@ -133,7 +133,7 @@ function AddPersonModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
             <Input
               id="howMet"
               value={howMet}
-              onChange={e => setHowMet(e.target.value)}
+              onChange={e => { setHowMet(e.target.value); }}
               placeholder="Work, school, event..."
             />
           </FormField>
@@ -142,7 +142,7 @@ function AddPersonModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
             <textarea
               id="notes"
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={e => { setNotes(e.target.value); }}
               placeholder="Things to remember..."
               className="input min-h-[80px]"
             />
@@ -189,7 +189,7 @@ function QuickInteractionModal({
               <button
                 key={t}
                 type="button"
-                onClick={() => setType(t)}
+                onClick={() => { setType(t); }}
                 className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                   type === t 
                     ? 'border-primary-500 bg-primary-50 text-primary-700' 
@@ -205,14 +205,14 @@ function QuickInteractionModal({
             <Input
               id="notes"
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={e => { setNotes(e.target.value); }}
               placeholder="What did you talk about?"
             />
           </FormField>
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>Log</Button>
+            <Button onClick={() => { mutation.mutate(); }} loading={mutation.isPending}>Log</Button>
           </div>
         </div>
       </Card>
@@ -257,7 +257,7 @@ function PersonRow({
                 person.health_score >= 80 ? 'success' : 
                 person.health_score >= 50 ? 'warning' : 'danger'
               }>
-                ❤️ {person.health_score}
+                📊 {person.health_score}
               </Badge>
             )}
             {person.current_streak > 0 && (
@@ -307,8 +307,8 @@ export function Dashboard() {
   const deleteM = useMutation({
     mutationFn: deletePerson,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['people'] })
-      queryClient.invalidateQueries({ queryKey: ['people-dashboard'] })
+      void queryClient.invalidateQueries({ queryKey: ['people'] })
+      void queryClient.invalidateQueries({ queryKey: ['people-dashboard'] })
     },
   })
 
@@ -319,8 +319,8 @@ export function Dashboard() {
   }
 
   const refreshData = () => {
-    queryClient.invalidateQueries({ queryKey: ['people'] })
-    queryClient.invalidateQueries({ queryKey: ['people-dashboard'] })
+    void queryClient.invalidateQueries({ queryKey: ['people'] })
+    void queryClient.invalidateQueries({ queryKey: ['people-dashboard'] })
   }
 
   if (loadingPeople) {
@@ -343,7 +343,7 @@ export function Dashboard() {
         title="People"
         subtitle={`${people?.length || 0} contacts`}
         actions={
-          <Button onClick={() => setShowAddModal(true)}>+ Add Person</Button>
+          <Button onClick={() => { setShowAddModal(true); }}>+ Add Person</Button>
         }
       />
 
@@ -396,7 +396,7 @@ export function Dashboard() {
           groups && groups.length > 0 && (
             <Select
               value={selectedGroupId?.toString() || ''}
-              onChange={e => setSelectedGroupId(e.target.value ? parseInt(e.target.value, 10) : null)}
+              onChange={e => { setSelectedGroupId(e.target.value ? parseInt(e.target.value, 10) : null); }}
               className="text-sm"
             >
               <option value="">All Groups</option>
@@ -414,7 +414,7 @@ export function Dashboard() {
             icon="👥"
             title="No people yet"
             description="Add your first contact to start tracking relationships."
-            action={<Button onClick={() => setShowAddModal(true)}>Add Person</Button>}
+            action={<Button onClick={() => { setShowAddModal(true); }}>Add Person</Button>}
           />
         ) : (
           <Card padding="none">
@@ -422,8 +422,8 @@ export function Dashboard() {
               <PersonRow
                 key={person.id}
                 person={person}
-                onLogInteraction={() => setInteractionPerson(person)}
-                onDelete={() => handleDelete(person)}
+                onLogInteraction={() => { setInteractionPerson(person); }}
+                onDelete={() => { handleDelete(person); }}
               />
             ))}
           </Card>
@@ -433,7 +433,7 @@ export function Dashboard() {
       {/* Modals */}
       {showAddModal && (
         <AddPersonModal
-          onClose={() => setShowAddModal(false)}
+          onClose={() => { setShowAddModal(false); }}
           onSuccess={refreshData}
         />
       )}
@@ -441,7 +441,7 @@ export function Dashboard() {
       {interactionPerson && (
         <QuickInteractionModal
           person={interactionPerson}
-          onClose={() => setInteractionPerson(null)}
+          onClose={() => { setInteractionPerson(null); }}
           onSuccess={refreshData}
         />
       )}

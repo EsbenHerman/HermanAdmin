@@ -49,11 +49,11 @@ export default function Debts() {
   })
 
   const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['debts'] })
-    queryClient.invalidateQueries({ queryKey: ['debt-entries'] })
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    queryClient.invalidateQueries({ queryKey: ['history'] })
-    queryClient.invalidateQueries({ queryKey: ['detailed-history'] })
+    void queryClient.invalidateQueries({ queryKey: ['debts'] })
+    void queryClient.invalidateQueries({ queryKey: ['debt-entries'] })
+    void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    void queryClient.invalidateQueries({ queryKey: ['history'] })
+    void queryClient.invalidateQueries({ queryKey: ['detailed-history'] })
   }
 
   const createMutation = useMutation({
@@ -87,12 +87,12 @@ export default function Debts() {
   const deleteEntryMutation = useMutation({
     mutationFn: ({ debtId, entryId }: { debtId: number; entryId: number }) => 
       deleteDebtEntry(debtId, entryId),
-    onSuccess: () => invalidateAll(),
+    onSuccess: () => { invalidateAll(); },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteDebt,
-    onSuccess: () => invalidateAll(),
+    onSuccess: () => { invalidateAll(); },
   })
 
   const closeForm = () => {
@@ -210,7 +210,7 @@ export default function Debts() {
                 <Input
                   type="text"
                   value={debtForm.name}
-                  onChange={(e) => setDebtForm({ ...debtForm, name: e.target.value })}
+                  onChange={(e) => { setDebtForm({ ...debtForm, name: e.target.value }); }}
                   placeholder="e.g., Mortgage"
                   required
                 />
@@ -219,7 +219,7 @@ export default function Debts() {
               <FormField label="Currency">
                 <Select
                   value={debtForm.currency}
-                  onChange={(e) => setDebtForm({ ...debtForm, currency: e.target.value })}
+                  onChange={(e) => { setDebtForm({ ...debtForm, currency: e.target.value }); }}
                 >
                   {CURRENCIES.map((cur) => (
                     <option key={cur} value={cur}>{cur}</option>
@@ -232,7 +232,7 @@ export default function Debts() {
                   type="text"
                   inputMode="decimal"
                   value={debtForm.interest_rate}
-                  onChange={(e) => setDebtForm({ ...debtForm, interest_rate: e.target.value })}
+                  onChange={(e) => { setDebtForm({ ...debtForm, interest_rate: e.target.value }); }}
                   placeholder="0"
                 />
               </FormField>
@@ -241,7 +241,7 @@ export default function Debts() {
                 <Input
                   type="date"
                   value={debtForm.entry_date}
-                  onChange={(e) => setDebtForm({ ...debtForm, entry_date: e.target.value })}
+                  onChange={(e) => { setDebtForm({ ...debtForm, entry_date: e.target.value }); }}
                 />
               </FormField>
 
@@ -250,7 +250,7 @@ export default function Debts() {
                   type="text"
                   inputMode="decimal"
                   value={debtForm.principal}
-                  onChange={(e) => setDebtForm({ ...debtForm, principal: e.target.value })}
+                  onChange={(e) => { setDebtForm({ ...debtForm, principal: e.target.value }); }}
                   placeholder="0"
                 />
               </FormField>
@@ -260,7 +260,7 @@ export default function Debts() {
                   type="text"
                   inputMode="decimal"
                   value={debtForm.monthly_payment}
-                  onChange={(e) => setDebtForm({ ...debtForm, monthly_payment: e.target.value })}
+                  onChange={(e) => { setDebtForm({ ...debtForm, monthly_payment: e.target.value }); }}
                   placeholder="0"
                 />
               </FormField>
@@ -269,7 +269,7 @@ export default function Debts() {
                 <Input
                   type="text"
                   value={debtForm.notes}
-                  onChange={(e) => setDebtForm({ ...debtForm, notes: e.target.value })}
+                  onChange={(e) => { setDebtForm({ ...debtForm, notes: e.target.value }); }}
                 />
               </FormField>
             </div>
@@ -324,7 +324,7 @@ export default function Debts() {
                 >
                   <td>
                     <button
-                      onClick={() => toggleExpand(debt.id)}
+                      onClick={() => { toggleExpand(debt.id); }}
                       className="p-1 text-gray-400 hover:text-gray-600 transition-transform"
                       title="Show history"
                     >
@@ -346,7 +346,7 @@ export default function Debts() {
                   </td>
                   <td className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="xs" onClick={() => openUpdate(debt)}>
+                      <Button variant="ghost" size="xs" onClick={() => { openUpdate(debt); }}>
                         Update
                       </Button>
                       <Button 
@@ -389,7 +389,7 @@ export default function Debts() {
                                       <Input
                                         type="date"
                                         value={editEntryForm.entry_date}
-                                        onChange={(e) => setEditEntryForm({ ...editEntryForm, entry_date: e.target.value })}
+                                        onChange={(e) => { setEditEntryForm({ ...editEntryForm, entry_date: e.target.value }); }}
                                         className="w-32 text-sm"
                                       />
                                     </td>
@@ -398,7 +398,7 @@ export default function Debts() {
                                         type="text"
                                         inputMode="decimal"
                                         value={editEntryForm.principal}
-                                        onChange={(e) => setEditEntryForm({ ...editEntryForm, principal: e.target.value })}
+                                        onChange={(e) => { setEditEntryForm({ ...editEntryForm, principal: e.target.value }); }}
                                         className="w-28 text-sm text-right"
                                       />
                                     </td>
@@ -407,7 +407,7 @@ export default function Debts() {
                                         type="text"
                                         inputMode="decimal"
                                         value={editEntryForm.monthly_payment}
-                                        onChange={(e) => setEditEntryForm({ ...editEntryForm, monthly_payment: e.target.value })}
+                                        onChange={(e) => { setEditEntryForm({ ...editEntryForm, monthly_payment: e.target.value }); }}
                                         className="w-28 text-sm text-right"
                                       />
                                     </td>
@@ -415,7 +415,7 @@ export default function Debts() {
                                       <Input
                                         type="text"
                                         value={editEntryForm.notes}
-                                        onChange={(e) => setEditEntryForm({ ...editEntryForm, notes: e.target.value })}
+                                        onChange={(e) => { setEditEntryForm({ ...editEntryForm, notes: e.target.value }); }}
                                         className="w-32 text-sm"
                                       />
                                     </td>
@@ -424,7 +424,7 @@ export default function Debts() {
                                         <Button
                                           variant="primary"
                                           size="xs"
-                                          onClick={(e) => handleEditEntrySubmit(e, debt.id, entry.id)}
+                                          onClick={(e) => { handleEditEntrySubmit(e, debt.id, entry.id); }}
                                           loading={updateEntryMutation.isPending}
                                         >
                                           Save
@@ -432,7 +432,7 @@ export default function Debts() {
                                         <Button
                                           variant="ghost"
                                           size="xs"
-                                          onClick={() => setEditingEntryId(null)}
+                                          onClick={() => { setEditingEntryId(null); }}
                                         >
                                           Cancel
                                         </Button>
@@ -447,10 +447,10 @@ export default function Debts() {
                                     <td className="py-2 text-left pl-4 text-gray-500">{entry.notes || '-'}</td>
                                     <td className="py-2 text-right">
                                       <div className="flex items-center justify-end gap-2">
-                                        <Button variant="ghost" size="xs" onClick={() => openEditEntry(entry)}>
+                                        <Button variant="ghost" size="xs" onClick={() => { openEditEntry(entry); }}>
                                           Edit
                                         </Button>
-                                        <Button variant="danger" size="xs" onClick={() => handleDeleteEntry(debt.id, entry.id)}>
+                                        <Button variant="danger" size="xs" onClick={() => { handleDeleteEntry(debt.id, entry.id); }}>
                                           Delete
                                         </Button>
                                       </div>
@@ -477,7 +477,7 @@ export default function Debts() {
                           <Input
                             type="date"
                             value={entryForm.entry_date}
-                            onChange={(e) => setEntryForm({ ...entryForm, entry_date: e.target.value })}
+                            onChange={(e) => { setEntryForm({ ...entryForm, entry_date: e.target.value }); }}
                             className="w-36"
                           />
                         </FormField>
@@ -486,7 +486,7 @@ export default function Debts() {
                             type="text"
                             inputMode="decimal"
                             value={entryForm.principal}
-                            onChange={(e) => setEntryForm({ ...entryForm, principal: e.target.value })}
+                            onChange={(e) => { setEntryForm({ ...entryForm, principal: e.target.value }); }}
                             placeholder="0"
                             className="w-32"
                           />
@@ -496,7 +496,7 @@ export default function Debts() {
                             type="text"
                             inputMode="decimal"
                             value={entryForm.monthly_payment}
-                            onChange={(e) => setEntryForm({ ...entryForm, monthly_payment: e.target.value })}
+                            onChange={(e) => { setEntryForm({ ...entryForm, monthly_payment: e.target.value }); }}
                             placeholder="0"
                             className="w-32"
                           />
@@ -505,7 +505,7 @@ export default function Debts() {
                           <Input
                             type="text"
                             value={entryForm.notes}
-                            onChange={(e) => setEntryForm({ ...entryForm, notes: e.target.value })}
+                            onChange={(e) => { setEntryForm({ ...entryForm, notes: e.target.value }); }}
                             className="w-40"
                           />
                         </FormField>
@@ -513,7 +513,7 @@ export default function Debts() {
                           <Button type="submit" size="sm" loading={addEntryMutation.isPending}>
                             Save
                           </Button>
-                          <Button type="button" variant="ghost" size="sm" onClick={() => setUpdateDebtId(null)}>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { setUpdateDebtId(null); }}>
                             Cancel
                           </Button>
                         </div>
@@ -532,7 +532,7 @@ export default function Debts() {
                     title="No debts yet"
                     description="Add your first debt to start tracking what you owe."
                     action={
-                      <Button onClick={() => setShowForm(true)}>
+                      <Button onClick={() => { setShowForm(true); }}>
                         + Add Debt
                       </Button>
                     }

@@ -29,26 +29,29 @@ func NewRouter(db *pgxpool.Pool) *chi.Mux {
 		MaxAge:           300,
 	}))
 
-	// Root route
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]string{
-			"name":    "HermanAdmin API",
-			"version": "1.0.0",
-			"status":  "running",
+	// API routes
+	r.Route("/api", func(api chi.Router) {
+		// Health check
+		api.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 		})
-	})
 
-	// Health check
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	})
+		// API info
+		api.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			json.NewEncoder(w).Encode(map[string]string{
+				"name":    "HermanAdmin API",
+				"version": "1.0.0",
+				"status":  "running",
+			})
+		})
 
-	// API v1 routes - register features
-	r.Route("/api/v1", func(r chi.Router) {
-		financial.RegisterRoutes(r, db)
-		health.RegisterRoutes(r, db)
-		calendar.RegisterRoutes(r, db)
-		people.RegisterRoutes(r, db)
+		// v1 routes - register features
+		api.Route("/v1", func(r chi.Router) {
+			financial.RegisterRoutes(r, db)
+			health.RegisterRoutes(r, db)
+			calendar.RegisterRoutes(r, db)
+			people.RegisterRoutes(r, db)
+		})
 	})
 
 	return r

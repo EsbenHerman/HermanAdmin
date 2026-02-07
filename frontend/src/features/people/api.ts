@@ -31,10 +31,10 @@ import type {
 
 // People
 export const fetchPeople = (): Promise<Person[]> =>
-  fetch(`${API_BASE}/people`).then(r => handleResponse<Person[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people`).then(r => handleResponse<Person[]>(r)).then(data => data ?? [])
 
 export const fetchPerson = (id: number): Promise<PersonWithInteractions> =>
-  fetch(`${API_BASE}/people/${id}`).then(r => handleResponse<PersonWithInteractions>(r))
+  fetch(`${API_BASE}/people/${String(id)}`).then(r => handleResponse<PersonWithInteractions>(r))
 
 export interface CreatePersonRequest {
   name: string
@@ -55,17 +55,17 @@ export const createPerson = (person: CreatePersonRequest): Promise<Person> =>
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(person),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<Person>(r))
 
 export const updatePerson = (id: number, person: CreatePersonRequest): Promise<Person> =>
-  fetch(`${API_BASE}/people/${id}`, {
+  fetch(`${API_BASE}/people/${String(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(person),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<Person>(r))
 
 export const deletePerson = (id: number): Promise<void> =>
-  fetch(`${API_BASE}/people/${id}`, { method: 'DELETE' }).then(r => {
+  fetch(`${API_BASE}/people/${String(id)}`, { method: 'DELETE' }).then(r => {
     if (!r.ok) throw new Error('Failed to delete')
   })
 
@@ -78,23 +78,23 @@ export interface CreateInteractionRequest {
 }
 
 export const createInteraction = (personId: number, interaction: CreateInteractionRequest): Promise<Interaction> =>
-  fetch(`${API_BASE}/people/${personId}/interactions`, {
+  fetch(`${API_BASE}/people/${String(personId)}/interactions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(interaction),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<Interaction>(r))
 
 export const deleteInteraction = (personId: number, interactionId: number): Promise<void> =>
-  fetch(`${API_BASE}/people/${personId}/interactions/${interactionId}`, { method: 'DELETE' }).then(r => {
+  fetch(`${API_BASE}/people/${String(personId)}/interactions/${String(interactionId)}`, { method: 'DELETE' }).then(r => {
     if (!r.ok) throw new Error('Failed to delete')
   })
 
 // Queries
 export const fetchOverdue = (): Promise<OverduePerson[]> =>
-  fetch(`${API_BASE}/people/overdue`).then(r => handleResponse<OverduePerson[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/overdue`).then(r => handleResponse<OverduePerson[]>(r)).then(data => data ?? [])
 
 export const fetchBirthdays = (): Promise<UpcomingBirthday[]> =>
-  fetch(`${API_BASE}/people/birthdays`).then(r => handleResponse<UpcomingBirthday[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/birthdays`).then(r => handleResponse<UpcomingBirthday[]>(r)).then(data => data ?? [])
 
 export const fetchPeopleDashboard = (): Promise<PeopleDashboard> =>
   fetch(`${API_BASE}/dashboard/people`).then(r => handleResponse<PeopleDashboard>(r))
@@ -106,17 +106,17 @@ export interface CreateFactRequest {
 }
 
 export const fetchFacts = (personId: number): Promise<Fact[]> =>
-  fetch(`${API_BASE}/people/${personId}/facts`).then(r => handleResponse<Fact[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/${String(personId)}/facts`).then(r => handleResponse<Fact[]>(r)).then(data => data ?? [])
 
 export const createFact = (personId: number, fact: CreateFactRequest): Promise<Fact> =>
-  fetch(`${API_BASE}/people/${personId}/facts`, {
+  fetch(`${API_BASE}/people/${String(personId)}/facts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(fact),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<Fact>(r))
 
 export const deleteFact = (personId: number, factId: number): Promise<void> =>
-  fetch(`${API_BASE}/people/${personId}/facts/${factId}`, { method: 'DELETE' }).then(r => {
+  fetch(`${API_BASE}/people/${String(personId)}/facts/${String(factId)}`, { method: 'DELETE' }).then(r => {
     if (!r.ok) throw new Error('Failed to delete')
   })
 
@@ -129,17 +129,17 @@ export interface CreateLifeEventRequest {
 }
 
 export const fetchLifeEvents = (personId: number): Promise<LifeEvent[]> =>
-  fetch(`${API_BASE}/people/${personId}/events`).then(r => handleResponse<LifeEvent[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/${String(personId)}/events`).then(r => handleResponse<LifeEvent[]>(r)).then(data => data ?? [])
 
 export const createLifeEvent = (personId: number, event: CreateLifeEventRequest): Promise<LifeEvent> =>
-  fetch(`${API_BASE}/people/${personId}/events`, {
+  fetch(`${API_BASE}/people/${String(personId)}/events`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(event),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<LifeEvent>(r))
 
 export const deleteLifeEvent = (personId: number, eventId: number): Promise<void> =>
-  fetch(`${API_BASE}/people/${personId}/events/${eventId}`, { method: 'DELETE' }).then(r => {
+  fetch(`${API_BASE}/people/${String(personId)}/events/${String(eventId)}`, { method: 'DELETE' }).then(r => {
     if (!r.ok) throw new Error('Failed to delete')
   })
 
@@ -152,32 +152,32 @@ export interface CreateSpecialDateRequest {
 }
 
 export const fetchSpecialDates = (personId: number): Promise<SpecialDate[]> =>
-  fetch(`${API_BASE}/people/${personId}/dates`).then(r => handleResponse<SpecialDate[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/${String(personId)}/dates`).then(r => handleResponse<SpecialDate[]>(r)).then(data => data ?? [])
 
 export const createSpecialDate = (personId: number, date: CreateSpecialDateRequest): Promise<SpecialDate> =>
-  fetch(`${API_BASE}/people/${personId}/dates`, {
+  fetch(`${API_BASE}/people/${String(personId)}/dates`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(date),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<SpecialDate>(r))
 
 export const deleteSpecialDate = (personId: number, dateId: number): Promise<void> =>
-  fetch(`${API_BASE}/people/${personId}/dates/${dateId}`, { method: 'DELETE' }).then(r => {
+  fetch(`${API_BASE}/people/${String(personId)}/dates/${String(dateId)}`, { method: 'DELETE' }).then(r => {
     if (!r.ok) throw new Error('Failed to delete')
   })
 
 // Proactive Features
 export const fetchSuggestions = (): Promise<Suggestion[]> =>
-  fetch(`${API_BASE}/people/suggestions`).then(r => handleResponse<Suggestion[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/suggestions`).then(r => handleResponse<Suggestion[]>(r)).then(data => data ?? [])
 
 export const fetchReconnect = (): Promise<ReconnectCandidate[]> =>
-  fetch(`${API_BASE}/people/reconnect`).then(r => handleResponse<ReconnectCandidate[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/reconnect`).then(r => handleResponse<ReconnectCandidate[]>(r)).then(data => data ?? [])
 
 export const fetchUpcomingDates = (): Promise<UpcomingDate[]> =>
-  fetch(`${API_BASE}/people/dates/upcoming`).then(r => handleResponse<UpcomingDate[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/dates/upcoming`).then(r => handleResponse<UpcomingDate[]>(r)).then(data => data ?? [])
 
 export const fetchNearby = (location: string): Promise<NearbyPerson[]> =>
-  fetch(`${API_BASE}/people/nearby?location=${encodeURIComponent(location)}`).then(r => handleResponse<NearbyPerson[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/nearby?location=${encodeURIComponent(location)}`).then(r => handleResponse<NearbyPerson[]>(r)).then(data => data ?? [])
 
 // Phase 4: Connections
 export interface CreateConnectionRequest {
@@ -187,17 +187,17 @@ export interface CreateConnectionRequest {
 }
 
 export const fetchConnections = (personId: number): Promise<Connection[]> =>
-  fetch(`${API_BASE}/people/${personId}/connections`).then(r => handleResponse<Connection[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/${String(personId)}/connections`).then(r => handleResponse<Connection[]>(r)).then(data => data ?? [])
 
 export const createConnection = (personId: number, connection: CreateConnectionRequest): Promise<Connection> =>
-  fetch(`${API_BASE}/people/${personId}/connections`, {
+  fetch(`${API_BASE}/people/${String(personId)}/connections`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(connection),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<Connection>(r))
 
 export const deleteConnection = (personId: number, connectionId: number): Promise<void> =>
-  fetch(`${API_BASE}/people/${personId}/connections/${connectionId}`, { method: 'DELETE' }).then(r => {
+  fetch(`${API_BASE}/people/${String(personId)}/connections/${String(connectionId)}`, { method: 'DELETE' }).then(r => {
     if (!r.ok) throw new Error('Failed to delete')
   })
 
@@ -209,39 +209,39 @@ export interface CreateGroupRequest {
 }
 
 export const fetchGroups = (): Promise<Group[]> =>
-  fetch(`${API_BASE}/groups`).then(r => handleResponse<Group[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/groups`).then(r => handleResponse<Group[]>(r)).then(data => data ?? [])
 
 export const fetchGroup = (id: number): Promise<GroupWithMembers> =>
-  fetch(`${API_BASE}/groups/${id}`).then(r => handleResponse<GroupWithMembers>(r))
+  fetch(`${API_BASE}/groups/${String(id)}`).then(r => handleResponse<GroupWithMembers>(r))
 
 export const createGroup = (group: CreateGroupRequest): Promise<Group> =>
   fetch(`${API_BASE}/groups`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(group),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<Group>(r))
 
 export const updateGroup = (id: number, group: CreateGroupRequest): Promise<Group> =>
-  fetch(`${API_BASE}/groups/${id}`, {
+  fetch(`${API_BASE}/groups/${String(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(group),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<Group>(r))
 
 export const deleteGroup = (id: number): Promise<void> =>
-  fetch(`${API_BASE}/groups/${id}`, { method: 'DELETE' }).then(r => {
+  fetch(`${API_BASE}/groups/${String(id)}`, { method: 'DELETE' }).then(r => {
     if (!r.ok) throw new Error('Failed to delete')
   })
 
 export const addGroupMember = (groupId: number, personId: number): Promise<GroupMember> =>
-  fetch(`${API_BASE}/groups/${groupId}/members`, {
+  fetch(`${API_BASE}/groups/${String(groupId)}/members`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ person_id: personId }),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<GroupMember>(r))
 
 export const removeGroupMember = (groupId: number, personId: number): Promise<void> =>
-  fetch(`${API_BASE}/groups/${groupId}/members/${personId}`, { method: 'DELETE' }).then(r => {
+  fetch(`${API_BASE}/groups/${String(groupId)}/members/${String(personId)}`, { method: 'DELETE' }).then(r => {
     if (!r.ok) throw new Error('Failed to remove')
   })
 
@@ -253,17 +253,17 @@ export interface CreateSocialRequest {
 }
 
 export const fetchSocials = (personId: number): Promise<Social[]> =>
-  fetch(`${API_BASE}/people/${personId}/socials`).then(r => handleResponse<Social[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people/${String(personId)}/socials`).then(r => handleResponse<Social[]>(r)).then(data => data ?? [])
 
 export const createSocial = (personId: number, social: CreateSocialRequest): Promise<Social> =>
-  fetch(`${API_BASE}/people/${personId}/socials`, {
+  fetch(`${API_BASE}/people/${String(personId)}/socials`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(social),
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<Social>(r))
 
 export const deleteSocial = (personId: number, socialId: number): Promise<void> =>
-  fetch(`${API_BASE}/people/${personId}/socials/${socialId}`, { method: 'DELETE' }).then(r => {
+  fetch(`${API_BASE}/people/${String(personId)}/socials/${String(socialId)}`, { method: 'DELETE' }).then(r => {
     if (!r.ok) throw new Error('Failed to delete')
   })
 
@@ -271,10 +271,10 @@ export const deleteSocial = (personId: number, socialId: number): Promise<void> 
 export const uploadPhoto = (personId: number, file: File): Promise<{ photo_url: string }> => {
   const formData = new FormData()
   formData.append('photo', file)
-  return fetch(`${API_BASE}/people/${personId}/photo`, {
+  return fetch(`${API_BASE}/people/${String(personId)}/photo`, {
     method: 'POST',
     body: formData,
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<{ photo_url: string }>(r))
 }
 
 // Phase 5: Import
@@ -284,9 +284,9 @@ export const importPeople = (file: File): Promise<ImportResult> => {
   return fetch(`${API_BASE}/people/import`, {
     method: 'POST',
     body: formData,
-  }).then(r => handleResponse(r))
+  }).then(r => handleResponse<ImportResult>(r))
 }
 
 // Fetch people by group
 export const fetchPeopleByGroup = (groupId: number): Promise<Person[]> =>
-  fetch(`${API_BASE}/people?group_id=${groupId}`).then(r => handleResponse<Person[]>(r)).then(data => data || [])
+  fetch(`${API_BASE}/people?group_id=${String(groupId)}`).then(r => handleResponse<Person[]>(r)).then(data => data ?? [])

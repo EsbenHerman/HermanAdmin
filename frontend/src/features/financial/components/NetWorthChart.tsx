@@ -1,4 +1,8 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { useMemo } from 'react'
+import { Line } from 'react-chartjs-2'
+import type { ChartOptions } from 'chart.js'
+import '../../../lib/chartjs'
+import { tooltipStyle } from '../../../lib/chartjs'
 import type { NetWorthDataPoint } from '../types'
 import { formatSEK } from '../utils'
 
@@ -14,7 +18,101 @@ const COLORS = {
 }
 
 export default function NetWorthChart({ history }: Props) {
-  if (!history || history.length === 0) {
+  const chartData = useMemo(() => {
+    if (!history || history.length === 0) return null
+
+    return {
+      labels: history.map(h => new Date(h.date).toLocaleDateString('sv-SE')),
+      datasets: [
+        {
+          label: 'Net Worth',
+          data: history.map(h => h.net_worth),
+          borderColor: COLORS.netWorth,
+          backgroundColor: COLORS.netWorth,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          tension: 0.3,
+        },
+        {
+          label: 'Assets',
+          data: history.map(h => h.total_assets),
+          borderColor: COLORS.assets,
+          backgroundColor: COLORS.assets,
+          borderWidth: 1.5,
+          borderDash: [5, 5],
+          pointRadius: 0,
+          tension: 0.3,
+        },
+        {
+          label: 'Debt',
+          data: history.map(h => h.total_debt),
+          borderColor: COLORS.debt,
+          backgroundColor: COLORS.debt,
+          borderWidth: 1.5,
+          borderDash: [5, 5],
+          pointRadius: 0,
+          tension: 0.3,
+        },
+      ],
+    }
+  }, [history])
+
+  const options: ChartOptions<'line'> = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 16,
+          font: { size: 12 },
+        },
+      },
+      tooltip: {
+        ...tooltipStyle,
+        callbacks: {
+          label: (ctx) => `${ctx.dataset.label}: ${formatSEK(ctx.parsed.y ?? 0)}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: '#e8e8e8',
+        },
+        ticks: {
+          font: { size: 10 },
+          color: '#737373',
+          maxTicksLimit: 8,
+        },
+        border: {
+          color: '#e8e8e8',
+        },
+      },
+      y: {
+        grid: {
+          color: '#e8e8e8',
+        },
+        ticks: {
+          font: { size: 10 },
+          color: '#737373',
+          callback: (value) => `${(Number(value) / 1000000).toFixed(1)}M`,
+        },
+        border: {
+          color: '#e8e8e8',
+        },
+      },
+    },
+  }), [])
+
+  if (!chartData) {
     return (
       <div className="flex items-center justify-center h-[200px] sm:h-[300px] text-gray-500 text-sm text-center px-4">
         No historical data yet. Add entries with different dates to see the trend.
@@ -22,74 +120,9 @@ export default function NetWorthChart({ history }: Props) {
     )
   }
 
-  const data = history.map(h => ({
-    date: new Date(h.date).toLocaleDateString('sv-SE'),
-    netWorth: h.net_worth,
-    assets: h.total_assets,
-    debt: h.total_debt,
-  }))
-
   return (
-    <ResponsiveContainer width="100%" height="100%" minHeight={200} className="!h-[200px] sm:!h-[300px]">
-      <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e8" />
-        <XAxis 
-          dataKey="date" 
-          tick={{ fontSize: 10, fill: '#737373' }} 
-          axisLine={{ stroke: '#e8e8e8' }}
-          tickLine={{ stroke: '#e8e8e8' }}
-          interval="preserveStartEnd"
-          tickMargin={8}
-        />
-        <YAxis 
-          tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
-          tick={{ fontSize: 10, fill: '#737373' }}
-          axisLine={{ stroke: '#e8e8e8' }}
-          tickLine={{ stroke: '#e8e8e8' }}
-          width={45}
-        />
-        <Tooltip 
-          formatter={(value) => formatSEK(typeof value === 'number' ? value : 0)}
-          contentStyle={{ 
-            backgroundColor: 'white', 
-            border: '1px solid #e8e8e8',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)'
-          }}
-          labelStyle={{ color: '#404040', fontWeight: 500 }}
-        />
-        <Legend 
-          wrapperStyle={{ paddingTop: '16px' }}
-          iconType="circle"
-        />
-        <Line 
-          type="monotone" 
-          dataKey="netWorth" 
-          name="Net Worth"
-          stroke={COLORS.netWorth}
-          strokeWidth={2}
-          dot={{ fill: COLORS.netWorth, r: 3 }}
-          activeDot={{ r: 5 }}
-        />
-        <Line 
-          type="monotone" 
-          dataKey="assets" 
-          name="Assets"
-          stroke={COLORS.assets}
-          strokeWidth={1.5}
-          strokeDasharray="5 5"
-          dot={false}
-        />
-        <Line 
-          type="monotone" 
-          dataKey="debt" 
-          name="Debt"
-          stroke={COLORS.debt}
-          strokeWidth={1.5}
-          strokeDasharray="5 5"
-          dot={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className="h-[200px] sm:h-[300px]">
+      <Line data={chartData} options={options} />
+    </div>
   )
 }

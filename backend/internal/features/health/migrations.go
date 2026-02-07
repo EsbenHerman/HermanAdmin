@@ -61,6 +61,40 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_workouts_date ON workouts(date DESC)`,
+
+		// Weight entries table
+		`CREATE TABLE IF NOT EXISTS weight_entries (
+			id BIGSERIAL PRIMARY KEY,
+			date DATE NOT NULL UNIQUE,
+			weight_kg DECIMAL(5, 2) NOT NULL,
+			notes TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_weight_entries_date ON weight_entries(date DESC)`,
+
+		// Health goals table (Phase 6)
+		`CREATE TABLE IF NOT EXISTS health_goals (
+			id BIGSERIAL PRIMARY KEY,
+			goal_type VARCHAR(50) NOT NULL UNIQUE,
+			target INT NOT NULL,
+			active BOOLEAN NOT NULL DEFAULT TRUE,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+
+		// Insert default goals if table is empty
+		`INSERT INTO health_goals (goal_type, target, active)
+		SELECT 'step_goal', 10000, true
+		WHERE NOT EXISTS (SELECT 1 FROM health_goals WHERE goal_type = 'step_goal')`,
+		`INSERT INTO health_goals (goal_type, target, active)
+		SELECT 'sleep_score', 80, true
+		WHERE NOT EXISTS (SELECT 1 FROM health_goals WHERE goal_type = 'sleep_score')`,
+		`INSERT INTO health_goals (goal_type, target, active)
+		SELECT 'readiness_score', 80, true
+		WHERE NOT EXISTS (SELECT 1 FROM health_goals WHERE goal_type = 'readiness_score')`,
+		`INSERT INTO health_goals (goal_type, target, active)
+		SELECT 'workout_frequency', 3, true
+		WHERE NOT EXISTS (SELECT 1 FROM health_goals WHERE goal_type = 'workout_frequency')`,
 	}
 
 	for _, migration := range migrations {

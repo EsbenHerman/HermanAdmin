@@ -138,7 +138,7 @@ function MonthCalendar({
             return (
               <button
                 key={`${weekIdx}-${dayIdx}`}
-                onClick={() => onSelectDate(dateObj)}
+                onClick={() => { onSelectDate(dateObj); }}
                 className={`
                   aspect-square p-0.5 sm:p-1 rounded-md sm:rounded-lg text-xs sm:text-sm font-medium transition-all
                   flex flex-col items-center justify-start
@@ -267,7 +267,7 @@ export function Dashboard() {
   if (error) {
     return (
       <Card className="bg-danger-50 border-danger-200">
-        <p className="text-danger-800">Error loading calendar: {(error as Error).message}</p>
+        <p className="text-danger-800">Error loading calendar: {(error).message}</p>
       </Card>
     )
   }

@@ -24,9 +24,28 @@ func RegisterRoutes(r chi.Router, db *pgxpool.Pool) {
 		r.Post("/workouts", h.CreateWorkout)
 		r.Get("/workouts/{id}", h.GetWorkout)
 		r.Delete("/workouts/{id}", h.DeleteWorkout)
+
+		// Weight entries
+		r.Get("/weight", h.ListWeightEntries)
+		r.Post("/weight", h.CreateWeightEntry)
+		r.Get("/weight/{date}", h.GetWeightEntry)
+		r.Delete("/weight/{date}", h.DeleteWeightEntry)
 	})
 
 	// Dashboard endpoints
 	r.Get("/dashboard/health", h.GetDashboard)
 	r.Get("/dashboard/health/history", h.GetHistory)
+	r.Get("/dashboard/health/sleep", h.GetSleepAnalysis)
+	r.Get("/dashboard/health/weight", h.GetWeightTrend)
+	r.Get("/dashboard/health/body", h.GetBodyMetrics)
+	r.Get("/dashboard/health/insights", h.GetInsights)
+	r.Get("/dashboard/health/goals", h.GetGoalsOverview)
+	r.Get("/dashboard/health/weekly", h.GetWeeklySummary)
+
+	// Goals CRUD
+	r.Route("/health/goals", func(r chi.Router) {
+		r.Get("/", h.ListGoals)
+		r.Post("/", h.UpsertGoal)
+		r.Delete("/{type}", h.DeleteGoal)
+	})
 }

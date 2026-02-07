@@ -1,14 +1,8 @@
 import { useState, useCallback, useMemo } from 'react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts'
+import { Bar } from 'react-chartjs-2'
+import type { ChartOptions } from 'chart.js'
+import '../../../lib/chartjs'
+import { tooltipStyle } from '../../../lib/chartjs'
 import type { ScoreHistoryPoint } from '../types'
 
 interface Props {
@@ -34,6 +28,10 @@ interface WeekdayAverage {
   activity_score: number
 }
 
+function isSeriesKey(key: string): key is SeriesKey {
+  return key === 'sleep_score' || key === 'readiness_score' || key === 'activity_score'
+}
+
 export default function WeekdayAveragesChart({ history }: Props) {
   const [visibleSeries, setVisibleSeries] = useState<Record<SeriesKey, boolean>>({
     sleep_score: true,
@@ -42,10 +40,12 @@ export default function WeekdayAveragesChart({ history }: Props) {
   })
 
   const handleLegendClick = useCallback((dataKey: string) => {
-    setVisibleSeries(prev => ({
-      ...prev,
-      [dataKey]: !prev[dataKey as SeriesKey],
-    }))
+    if (isSeriesKey(dataKey)) {
+      setVisibleSeries(prev => ({
+        ...prev,
+        [dataKey]: !prev[dataKey],
+      }))
+    }
   }, [])
 
   const weekdayAverages = useMemo(() => {
@@ -92,6 +92,62 @@ export default function WeekdayAveragesChart({ history }: Props) {
     return result
   }, [history])
 
+  const chartData = useMemo(() => ({
+    labels: weekdayAverages.map(d => d.weekday),
+    datasets: (Object.keys(SERIES_CONFIG) as SeriesKey[])
+      .filter(key => visibleSeries[key])
+      .map(key => ({
+        label: SERIES_CONFIG[key].name,
+        data: weekdayAverages.map(d => d[key]),
+        backgroundColor: SERIES_CONFIG[key].color,
+        borderRadius: 3,
+      })),
+  }), [weekdayAverages, visibleSeries])
+
+  const options: ChartOptions<'bar'> = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        ...tooltipStyle,
+        callbacks: {
+          label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: '#e8e8e8',
+        },
+        ticks: {
+          font: { size: 10 },
+          color: '#737373',
+        },
+        border: {
+          color: '#e8e8e8',
+        },
+      },
+      y: {
+        min: 0,
+        max: 100,
+        grid: {
+          color: '#e8e8e8',
+        },
+        ticks: {
+          font: { size: 10 },
+          color: '#737373',
+        },
+        border: {
+          color: '#e8e8e8',
+        },
+      },
+    },
+  }), [])
+
   if (!history || history.length === 0) {
     return (
       <div className="h-40 sm:h-48 flex items-center justify-center text-gray-500 text-sm">
@@ -100,17 +156,21 @@ export default function WeekdayAveragesChart({ history }: Props) {
     )
   }
 
-  const renderLegend = (props: any) => {
-    const { payload } = props
-    return (
+  return (
+    <div>
+      <div className="h-[180px] sm:h-[220px]">
+        <Bar data={chartData} options={options} />
+      </div>
+      
+      {/* Custom Legend */}
       <div className="flex justify-center gap-2 sm:gap-4 mt-3 sm:mt-4 flex-wrap">
-        {payload.map((entry: any, index: number) => {
-          const key = entry.dataKey as SeriesKey
+        {(Object.keys(SERIES_CONFIG) as SeriesKey[]).map(key => {
+          const config = SERIES_CONFIG[key]
           const isVisible = visibleSeries[key]
           return (
             <button
-              key={`legend-${index}`}
-              onClick={() => handleLegendClick(entry.dataKey)}
+              key={key}
+              onClick={() => { handleLegendClick(key); }}
               className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all ${
                 isVisible 
                   ? 'opacity-100 hover:bg-gray-100' 
@@ -119,56 +179,13 @@ export default function WeekdayAveragesChart({ history }: Props) {
             >
               <span
                 className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: entry.color }}
+                style={{ backgroundColor: config.color }}
               />
-              <span className="text-xs sm:text-sm font-medium text-gray-700">{entry.value}</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-700">{config.name}</span>
             </button>
           )
         })}
       </div>
-    )
-  }
-
-  return (
-    <ResponsiveContainer width="100%" height="100%" minHeight={180} className="!h-[180px] sm:!h-[220px]">
-      <BarChart data={weekdayAverages} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e8" />
-        <XAxis 
-          dataKey="weekday" 
-          tick={{ fontSize: 10, fill: '#737373' }}
-          axisLine={{ stroke: '#e8e8e8' }}
-          tickLine={{ stroke: '#e8e8e8' }}
-          tickMargin={8}
-        />
-        <YAxis 
-          domain={[0, 100]} 
-          tick={{ fontSize: 10, fill: '#737373' }}
-          axisLine={{ stroke: '#e8e8e8' }}
-          tickLine={{ stroke: '#e8e8e8' }}
-          width={30}
-        />
-        <Tooltip 
-          formatter={(value) => [value ?? 0, '']}
-          contentStyle={{ 
-            backgroundColor: 'white', 
-            border: '1px solid #e8e8e8',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
-            fontSize: '12px'
-          }}
-        />
-        <Legend content={renderLegend} />
-        {(Object.keys(SERIES_CONFIG) as SeriesKey[]).map(key => (
-          <Bar
-            key={key}
-            dataKey={key}
-            name={SERIES_CONFIG[key].name}
-            fill={SERIES_CONFIG[key].color}
-            hide={!visibleSeries[key]}
-            radius={[3, 3, 0, 0]}
-          />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
+    </div>
   )
 }

@@ -131,6 +131,9 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 
 		// Phase 5: Photo Upload
 		`ALTER TABLE people ADD COLUMN IF NOT EXISTS photo_url TEXT NOT NULL DEFAULT ''`,
+
+		// Prevent duplicate names (case-insensitive)
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_people_name_unique ON people (LOWER(name))`,
 	}
 
 	for _, migration := range migrations {

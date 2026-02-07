@@ -161,7 +161,7 @@ function EditPersonModal({
               <Input
                 id="name"
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={e => { setName(e.target.value); }}
                 required
               />
             </FormField>
@@ -169,7 +169,7 @@ function EditPersonModal({
               <Input
                 id="nickname"
                 value={nickname}
-                onChange={e => setNickname(e.target.value)}
+                onChange={e => { setNickname(e.target.value); }}
               />
             </FormField>
           </div>
@@ -179,7 +179,7 @@ function EditPersonModal({
               <Select
                 id="relationship"
                 value={relationship}
-                onChange={e => setRelationship(e.target.value as RelationshipType)}
+                onChange={e => { setRelationship(e.target.value as RelationshipType); }}
               >
                 {Object.entries(RELATIONSHIP_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
@@ -190,7 +190,7 @@ function EditPersonModal({
               <Select
                 id="frequency"
                 value={contactFrequency}
-                onChange={e => setContactFrequency(e.target.value as ContactFrequency)}
+                onChange={e => { setContactFrequency(e.target.value as ContactFrequency); }}
               >
                 {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
@@ -205,14 +205,14 @@ function EditPersonModal({
                 id="email"
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => { setEmail(e.target.value); }}
               />
             </FormField>
             <FormField label="Phone" htmlFor="phone">
               <Input
                 id="phone"
                 value={phone}
-                onChange={e => setPhone(e.target.value)}
+                onChange={e => { setPhone(e.target.value); }}
               />
             </FormField>
           </div>
@@ -223,14 +223,14 @@ function EditPersonModal({
                 id="birthday"
                 type="date"
                 value={birthday}
-                onChange={e => setBirthday(e.target.value)}
+                onChange={e => { setBirthday(e.target.value); }}
               />
             </FormField>
             <FormField label="Location" htmlFor="location">
               <Input
                 id="location"
                 value={location}
-                onChange={e => setLocation(e.target.value)}
+                onChange={e => { setLocation(e.target.value); }}
               />
             </FormField>
           </div>
@@ -239,7 +239,7 @@ function EditPersonModal({
             <Input
               id="howMet"
               value={howMet}
-              onChange={e => setHowMet(e.target.value)}
+              onChange={e => { setHowMet(e.target.value); }}
             />
           </FormField>
 
@@ -247,7 +247,7 @@ function EditPersonModal({
             <textarea
               id="notes"
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={e => { setNotes(e.target.value); }}
               className="input min-h-[80px]"
             />
           </FormField>
@@ -300,7 +300,7 @@ function AddInteractionModal({
               <button
                 key={t}
                 type="button"
-                onClick={() => setType(t)}
+                onClick={() => { setType(t); }}
                 className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                   type === t 
                     ? 'border-primary-500 bg-primary-50 text-primary-700' 
@@ -317,7 +317,7 @@ function AddInteractionModal({
               id="date"
               type="date"
               value={date}
-              onChange={e => setDate(e.target.value)}
+              onChange={e => { setDate(e.target.value); }}
             />
           </FormField>
 
@@ -325,7 +325,7 @@ function AddInteractionModal({
             <Input
               id="topics"
               value={topics}
-              onChange={e => setTopics(e.target.value)}
+              onChange={e => { setTopics(e.target.value); }}
               placeholder="Work, travel plans, movies..."
             />
           </FormField>
@@ -334,7 +334,7 @@ function AddInteractionModal({
             <textarea
               id="notes"
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={e => { setNotes(e.target.value); }}
               placeholder="Any other details..."
               className="input min-h-[60px]"
             />
@@ -342,7 +342,7 @@ function AddInteractionModal({
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>Log</Button>
+            <Button onClick={() => { mutation.mutate(); }} loading={mutation.isPending}>Log</Button>
           </div>
         </div>
       </Card>
@@ -380,7 +380,7 @@ function AddFactModal({
             <Select
               id="category"
               value={category}
-              onChange={e => setCategory(e.target.value as FactCategory)}
+              onChange={e => { setCategory(e.target.value as FactCategory); }}
             >
               {Object.entries(FACT_CATEGORY_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
@@ -392,7 +392,7 @@ function AddFactModal({
             <textarea
               id="fact"
               value={fact}
-              onChange={e => setFact(e.target.value)}
+              onChange={e => { setFact(e.target.value); }}
               placeholder="Important thing to remember..."
               className="input min-h-[80px]"
               required
@@ -401,7 +401,7 @@ function AddFactModal({
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => mutation.mutate()} loading={mutation.isPending} disabled={!fact.trim()}>Add</Button>
+            <Button onClick={() => { mutation.mutate(); }} loading={mutation.isPending} disabled={!fact.trim()}>Add</Button>
           </div>
         </div>
       </Card>
@@ -446,7 +446,7 @@ function AddLifeEventModal({
             <Select
               id="eventType"
               value={eventType}
-              onChange={e => setEventType(e.target.value as EventType)}
+              onChange={e => { setEventType(e.target.value as EventType); }}
             >
               {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
@@ -458,7 +458,7 @@ function AddLifeEventModal({
             <Input
               id="title"
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={e => { setTitle(e.target.value); }}
               placeholder="Started at Google, Moved to London..."
               required
             />
@@ -469,7 +469,7 @@ function AddLifeEventModal({
               id="eventDate"
               type="date"
               value={date}
-              onChange={e => setDate(e.target.value)}
+              onChange={e => { setDate(e.target.value); }}
             />
           </FormField>
 
@@ -477,7 +477,7 @@ function AddLifeEventModal({
             <textarea
               id="eventNotes"
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={e => { setNotes(e.target.value); }}
               placeholder="Any details..."
               className="input min-h-[60px]"
             />
@@ -485,7 +485,7 @@ function AddLifeEventModal({
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => mutation.mutate()} loading={mutation.isPending} disabled={!title.trim()}>Add</Button>
+            <Button onClick={() => { mutation.mutate(); }} loading={mutation.isPending} disabled={!title.trim()}>Add</Button>
           </div>
         </div>
       </Card>
@@ -529,7 +529,7 @@ function AddSpecialDateModal({
             <Select
               id="dateType"
               value={dateType}
-              onChange={e => setDateType(e.target.value as SpecialDateType)}
+              onChange={e => { setDateType(e.target.value as SpecialDateType); }}
             >
               {Object.entries(SPECIAL_DATE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
@@ -541,7 +541,7 @@ function AddSpecialDateModal({
             <Input
               id="dateLabel"
               value={label}
-              onChange={e => setLabel(e.target.value)}
+              onChange={e => { setLabel(e.target.value); }}
               placeholder="Wedding anniversary, Emma's birthday..."
               required
             />
@@ -551,7 +551,7 @@ function AddSpecialDateModal({
             <Input
               id="dateValue"
               value={date}
-              onChange={e => setDate(e.target.value)}
+              onChange={e => { setDate(e.target.value); }}
               placeholder="06-15"
               pattern="\d{2}-\d{2}"
               required
@@ -560,7 +560,7 @@ function AddSpecialDateModal({
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => mutation.mutate()} loading={mutation.isPending} disabled={!label.trim() || !date}>Add</Button>
+            <Button onClick={() => { mutation.mutate(); }} loading={mutation.isPending} disabled={!label.trim() || !date}>Add</Button>
           </div>
         </div>
       </Card>
@@ -612,7 +612,7 @@ function AddConnectionModal({
             <Select
               id="connectedPerson"
               value={selectedPersonId.toString()}
-              onChange={e => setSelectedPersonId(parseInt(e.target.value, 10))}
+              onChange={e => { setSelectedPersonId(parseInt(e.target.value, 10)); }}
             >
               <option value="0">Select a person...</option>
               {availablePeople.map(p => (
@@ -625,7 +625,7 @@ function AddConnectionModal({
             <Select
               id="connRelationship"
               value={relationship}
-              onChange={e => setRelationship(e.target.value as ConnectionType)}
+              onChange={e => { setRelationship(e.target.value as ConnectionType); }}
             >
               {Object.entries(CONNECTION_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
@@ -637,14 +637,14 @@ function AddConnectionModal({
             <Input
               id="connNotes"
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={e => { setNotes(e.target.value); }}
               placeholder="How they know each other..."
             />
           </FormField>
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => mutation.mutate()} loading={mutation.isPending} disabled={!selectedPersonId}>Add</Button>
+            <Button onClick={() => { mutation.mutate(); }} loading={mutation.isPending} disabled={!selectedPersonId}>Add</Button>
           </div>
         </div>
       </Card>
@@ -688,7 +688,7 @@ function AddSocialModal({
             <Select
               id="platform"
               value={platform}
-              onChange={e => setPlatform(e.target.value as SocialPlatform)}
+              onChange={e => { setPlatform(e.target.value as SocialPlatform); }}
             >
               {Object.entries(SOCIAL_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
@@ -700,7 +700,7 @@ function AddSocialModal({
             <Input
               id="handle"
               value={handle}
-              onChange={e => setHandle(e.target.value)}
+              onChange={e => { setHandle(e.target.value); }}
               placeholder="@username"
               required
             />
@@ -710,14 +710,14 @@ function AddSocialModal({
             <Input
               id="socialUrl"
               value={url}
-              onChange={e => setUrl(e.target.value)}
+              onChange={e => { setUrl(e.target.value); }}
               placeholder="https://..."
             />
           </FormField>
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => mutation.mutate()} loading={mutation.isPending} disabled={!handle.trim()}>Add</Button>
+            <Button onClick={() => { mutation.mutate(); }} loading={mutation.isPending} disabled={!handle.trim()}>Add</Button>
           </div>
         </div>
       </Card>
@@ -748,7 +748,7 @@ export function Person() {
   const deletePersonM = useMutation({
     mutationFn: () => deletePerson(personId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['people'] })
+      void queryClient.invalidateQueries({ queryKey: ['people'] })
       navigate('/people')
     },
   })
@@ -756,28 +756,28 @@ export function Person() {
   const deleteInteractionM = useMutation({
     mutationFn: (interactionId: number) => deleteInteraction(personId, interactionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['person', personId] })
+      void queryClient.invalidateQueries({ queryKey: ['person', personId] })
     },
   })
 
   const deleteFactM = useMutation({
     mutationFn: (factId: number) => deleteFact(personId, factId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['person', personId] })
+      void queryClient.invalidateQueries({ queryKey: ['person', personId] })
     },
   })
 
   const deleteEventM = useMutation({
     mutationFn: (eventId: number) => deleteLifeEvent(personId, eventId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['person', personId] })
+      void queryClient.invalidateQueries({ queryKey: ['person', personId] })
     },
   })
 
   const deleteSpecialDateM = useMutation({
     mutationFn: (dateId: number) => deleteSpecialDate(personId, dateId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['person', personId] })
+      void queryClient.invalidateQueries({ queryKey: ['person', personId] })
     },
   })
 
@@ -785,7 +785,7 @@ export function Person() {
   const deleteConnectionM = useMutation({
     mutationFn: (connectionId: number) => deleteConnection(personId, connectionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['person', personId] })
+      void queryClient.invalidateQueries({ queryKey: ['person', personId] })
     },
   })
 
@@ -793,7 +793,7 @@ export function Person() {
   const deleteSocialM = useMutation({
     mutationFn: (socialId: number) => deleteSocial(personId, socialId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['person', personId] })
+      void queryClient.invalidateQueries({ queryKey: ['person', personId] })
     },
   })
 
@@ -801,17 +801,17 @@ export function Person() {
   const uploadPhotoM = useMutation({
     mutationFn: (file: File) => uploadPhoto(personId, file),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['person', personId] })
+      void queryClient.invalidateQueries({ queryKey: ['person', personId] })
     },
   })
 
   const refreshData = () => {
-    queryClient.invalidateQueries({ queryKey: ['person', personId] })
-    queryClient.invalidateQueries({ queryKey: ['people'] })
+    void queryClient.invalidateQueries({ queryKey: ['person', personId] })
+    void queryClient.invalidateQueries({ queryKey: ['people'] })
   }
 
   const handleDeletePerson = () => {
-    if (confirm(`Delete ${person?.name}? This will also delete all interactions.`)) {
+    if (confirm(`Delete ${person?.name ?? 'this person'}? This will also delete all interactions.`)) {
       deletePersonM.mutate()
     }
   }
@@ -918,7 +918,7 @@ export function Person() {
             backLabel="← All People"
             actions={
               <div className="flex items-center gap-2">
-                <Button variant="secondary" onClick={() => setShowEditModal(true)}>Edit</Button>
+                <Button variant="secondary" onClick={() => { setShowEditModal(true); }}>Edit</Button>
                 <Button variant="danger" onClick={handleDeletePerson}>Delete</Button>
               </div>
             }
@@ -1050,13 +1050,13 @@ export function Person() {
         title="Key Facts" 
         subtitle="Important things to remember"
         actions={
-          <Button size="sm" onClick={() => setShowAddFact(true)}>+ Add Fact</Button>
+          <Button size="sm" onClick={() => { setShowAddFact(true); }}>+ Add Fact</Button>
         }
       >
         {!person.facts || person.facts.length === 0 ? (
           <Card className="text-center py-6">
             <p className="text-gray-500 mb-3">No key facts recorded yet.</p>
-            <Button size="sm" onClick={() => setShowAddFact(true)}>Add First Fact</Button>
+            <Button size="sm" onClick={() => { setShowAddFact(true); }}>Add First Fact</Button>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1066,7 +1066,7 @@ export function Person() {
                   <Badge variant="gray" className="mb-1">{FACT_CATEGORY_LABELS[fact.category]}</Badge>
                   <p className="text-gray-900">{fact.fact}</p>
                 </div>
-                <Button size="xs" variant="ghost" onClick={() => handleDeleteFact(fact.id)}>🗑️</Button>
+                <Button size="xs" variant="ghost" onClick={() => { handleDeleteFact(fact.id); }}>🗑️</Button>
               </Card>
             ))}
           </div>
@@ -1078,13 +1078,13 @@ export function Person() {
         title="Life Events" 
         subtitle="Major milestones"
         actions={
-          <Button size="sm" onClick={() => setShowAddEvent(true)}>+ Add Event</Button>
+          <Button size="sm" onClick={() => { setShowAddEvent(true); }}>+ Add Event</Button>
         }
       >
         {!person.life_events || person.life_events.length === 0 ? (
           <Card className="text-center py-6">
             <p className="text-gray-500 mb-3">No life events recorded yet.</p>
-            <Button size="sm" onClick={() => setShowAddEvent(true)}>Add First Event</Button>
+            <Button size="sm" onClick={() => { setShowAddEvent(true); }}>Add First Event</Button>
           </Card>
         ) : (
           <Card padding="none">
@@ -1105,7 +1105,7 @@ export function Person() {
                     )}
                   </div>
                 </div>
-                <Button size="xs" variant="ghost" onClick={() => handleDeleteEvent(event.id)}>🗑️</Button>
+                <Button size="xs" variant="ghost" onClick={() => { handleDeleteEvent(event.id); }}>🗑️</Button>
               </div>
             ))}
           </Card>
@@ -1117,13 +1117,13 @@ export function Person() {
         title="Special Dates" 
         subtitle="Recurring dates to remember"
         actions={
-          <Button size="sm" onClick={() => setShowAddSpecialDate(true)}>+ Add Date</Button>
+          <Button size="sm" onClick={() => { setShowAddSpecialDate(true); }}>+ Add Date</Button>
         }
       >
         {!person.special_dates || person.special_dates.length === 0 ? (
           <Card className="text-center py-6">
             <p className="text-gray-500 mb-3">No special dates added yet.</p>
-            <Button size="sm" onClick={() => setShowAddSpecialDate(true)}>Add First Date</Button>
+            <Button size="sm" onClick={() => { setShowAddSpecialDate(true); }}>Add First Date</Button>
           </Card>
         ) : (
           <Card padding="none">
@@ -1141,7 +1141,7 @@ export function Person() {
                     <p className="text-sm text-gray-500">{date.date} (every year)</p>
                   </div>
                 </div>
-                <Button size="xs" variant="ghost" onClick={() => handleDeleteSpecialDate(date.id)}>🗑️</Button>
+                <Button size="xs" variant="ghost" onClick={() => { handleDeleteSpecialDate(date.id); }}>🗑️</Button>
               </div>
             ))}
           </Card>
@@ -1153,13 +1153,13 @@ export function Person() {
         title="Connections" 
         subtitle="Who they know"
         actions={
-          <Button size="sm" onClick={() => setShowAddConnection(true)}>+ Add Connection</Button>
+          <Button size="sm" onClick={() => { setShowAddConnection(true); }}>+ Add Connection</Button>
         }
       >
         {!person.connections || person.connections.length === 0 ? (
           <Card className="text-center py-6">
             <p className="text-gray-500 mb-3">No connections added yet.</p>
-            <Button size="sm" onClick={() => setShowAddConnection(true)}>Add First Connection</Button>
+            <Button size="sm" onClick={() => { setShowAddConnection(true); }}>Add First Connection</Button>
           </Card>
         ) : (
           <Card padding="none">
@@ -1187,7 +1187,7 @@ export function Person() {
                     )}
                   </div>
                 </div>
-                <Button size="xs" variant="ghost" onClick={() => handleDeleteConnection(conn.id)}>🗑️</Button>
+                <Button size="xs" variant="ghost" onClick={() => { handleDeleteConnection(conn.id); }}>🗑️</Button>
               </div>
             ))}
           </Card>
@@ -1199,13 +1199,13 @@ export function Person() {
         title="Social Profiles" 
         subtitle="Connect on social media"
         actions={
-          <Button size="sm" onClick={() => setShowAddSocial(true)}>+ Add Profile</Button>
+          <Button size="sm" onClick={() => { setShowAddSocial(true); }}>+ Add Profile</Button>
         }
       >
         {!person.socials || person.socials.length === 0 ? (
           <Card className="text-center py-6">
             <p className="text-gray-500 mb-3">No social profiles added yet.</p>
-            <Button size="sm" onClick={() => setShowAddSocial(true)}>Add First Profile</Button>
+            <Button size="sm" onClick={() => { setShowAddSocial(true); }}>Add First Profile</Button>
           </Card>
         ) : (
           <div className="flex flex-wrap gap-3">
@@ -1224,7 +1224,7 @@ export function Person() {
                 ) : (
                   <span className="text-gray-700">@{social.handle}</span>
                 )}
-                <Button size="xs" variant="ghost" onClick={() => handleDeleteSocial(social.id)}>×</Button>
+                <Button size="xs" variant="ghost" onClick={() => { handleDeleteSocial(social.id); }}>×</Button>
               </Card>
             ))}
           </div>
@@ -1236,13 +1236,13 @@ export function Person() {
         title="Interactions" 
         subtitle={`${person.interactions?.length || 0} logged`}
         actions={
-          <Button size="sm" onClick={() => setShowAddInteraction(true)}>+ Log Interaction</Button>
+          <Button size="sm" onClick={() => { setShowAddInteraction(true); }}>+ Log Interaction</Button>
         }
       >
         {!person.interactions || person.interactions.length === 0 ? (
           <Card className="text-center py-8">
             <p className="text-gray-500 mb-4">No interactions logged yet.</p>
-            <Button onClick={() => setShowAddInteraction(true)}>Log First Interaction</Button>
+            <Button onClick={() => { setShowAddInteraction(true); }}>Log First Interaction</Button>
           </Card>
         ) : (
           <Card padding="none">
@@ -1271,7 +1271,7 @@ export function Person() {
                 <Button 
                   size="xs" 
                   variant="ghost" 
-                  onClick={() => handleDeleteInteraction(interaction.id)}
+                  onClick={() => { handleDeleteInteraction(interaction.id); }}
                 >
                   🗑️
                 </Button>
@@ -1285,7 +1285,7 @@ export function Person() {
       {showEditModal && (
         <EditPersonModal
           person={person}
-          onClose={() => setShowEditModal(false)}
+          onClose={() => { setShowEditModal(false); }}
           onSuccess={refreshData}
         />
       )}
@@ -1293,7 +1293,7 @@ export function Person() {
       {showAddInteraction && (
         <AddInteractionModal
           personId={personId}
-          onClose={() => setShowAddInteraction(false)}
+          onClose={() => { setShowAddInteraction(false); }}
           onSuccess={refreshData}
         />
       )}
@@ -1301,7 +1301,7 @@ export function Person() {
       {showAddFact && (
         <AddFactModal
           personId={personId}
-          onClose={() => setShowAddFact(false)}
+          onClose={() => { setShowAddFact(false); }}
           onSuccess={refreshData}
         />
       )}
@@ -1309,7 +1309,7 @@ export function Person() {
       {showAddEvent && (
         <AddLifeEventModal
           personId={personId}
-          onClose={() => setShowAddEvent(false)}
+          onClose={() => { setShowAddEvent(false); }}
           onSuccess={refreshData}
         />
       )}
@@ -1317,7 +1317,7 @@ export function Person() {
       {showAddSpecialDate && (
         <AddSpecialDateModal
           personId={personId}
-          onClose={() => setShowAddSpecialDate(false)}
+          onClose={() => { setShowAddSpecialDate(false); }}
           onSuccess={refreshData}
         />
       )}
@@ -1325,7 +1325,7 @@ export function Person() {
       {showAddConnection && (
         <AddConnectionModal
           personId={personId}
-          onClose={() => setShowAddConnection(false)}
+          onClose={() => { setShowAddConnection(false); }}
           onSuccess={refreshData}
         />
       )}
@@ -1333,7 +1333,7 @@ export function Person() {
       {showAddSocial && (
         <AddSocialModal
           personId={personId}
-          onClose={() => setShowAddSocial(false)}
+          onClose={() => { setShowAddSocial(false); }}
           onSuccess={refreshData}
         />
       )}

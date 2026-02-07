@@ -94,7 +94,7 @@ function MobileNav({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
 
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
+  const closeMobileMenu = useCallback(() => { setMobileMenuOpen(false); }, [])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -121,7 +121,7 @@ function App() {
             {/* Mobile menu button */}
             <button 
               className="flex sm:hidden p-2 -mr-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-              onClick={() => setMobileMenuOpen(true)}
+              onClick={() => { setMobileMenuOpen(true); }}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -138,7 +138,7 @@ function App() {
           <Route path="/financial" element={<NetWorthDashboard />} />
           <Route path="/financial/assets" element={<Assets />} />
           <Route path="/financial/debts" element={<Debts />} />
-          <Route path="/health" element={<HealthDashboard />} />
+          <Route path="/health/*" element={<HealthDashboard />} />
           <Route path="/calendar" element={<CalendarDashboard />} />
           <Route path="/people" element={<PeopleDashboard />} />
           <Route path="/people/:id" element={<Person />} />

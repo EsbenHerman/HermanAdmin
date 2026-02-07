@@ -1,14 +1,8 @@
 import { useState, useCallback, useMemo } from 'react'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts'
+import { Line } from 'react-chartjs-2'
+import type { ChartOptions } from 'chart.js'
+import '../../../lib/chartjs'
+import { tooltipStyle } from '../../../lib/chartjs'
 import type { ScoreHistoryPoint } from '../types'
 
 interface Props {
@@ -49,6 +43,10 @@ function calculateMA(
   return Math.round(values.reduce((a, b) => a + b, 0) / values.length)
 }
 
+function isSeriesKey(key: string): key is SeriesKey {
+  return key === 'sleep_score' || key === 'readiness_score' || key === 'activity_score'
+}
+
 export default function HealthScoreChart({ history }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('ma7')
   const [visibleSeries, setVisibleSeries] = useState<Record<SeriesKey, boolean>>({
@@ -58,10 +56,12 @@ export default function HealthScoreChart({ history }: Props) {
   })
 
   const handleLegendClick = useCallback((dataKey: string) => {
-    setVisibleSeries(prev => ({
-      ...prev,
-      [dataKey]: !prev[dataKey as SeriesKey],
-    }))
+    if (isSeriesKey(dataKey)) {
+      setVisibleSeries(prev => ({
+        ...prev,
+        [dataKey]: !prev[dataKey],
+      }))
+    }
   }, [])
 
   const data = useMemo(() => {
@@ -89,39 +89,82 @@ export default function HealthScoreChart({ history }: Props) {
     }))
   }, [history, viewMode])
 
+  const chartData = useMemo(() => ({
+    labels: data.map(d => d.displayDay),
+    datasets: (Object.keys(SERIES_CONFIG) as SeriesKey[])
+      .filter(key => visibleSeries[key])
+      .map(key => ({
+        label: SERIES_CONFIG[key].name,
+        data: data.map(d => d[key] ?? null),
+        borderColor: SERIES_CONFIG[key].color,
+        backgroundColor: SERIES_CONFIG[key].color,
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.3,
+        spanGaps: true,
+      })),
+  }), [data, visibleSeries])
+
+  const options: ChartOptions<'line'> = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        ...tooltipStyle,
+        callbacks: {
+          title: (items) => {
+            const idx = items[0]?.dataIndex
+            if (idx !== undefined) {
+              return `Date: ${data[idx]?.displayDay || ''}`
+            }
+            return ''
+          },
+          label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y ?? 0}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: '#e8e8e8',
+        },
+        ticks: {
+          font: { size: 10 },
+          color: '#737373',
+          maxTicksLimit: 8,
+        },
+        border: {
+          color: '#e8e8e8',
+        },
+      },
+      y: {
+        min: 0,
+        max: 100,
+        grid: {
+          color: '#e8e8e8',
+        },
+        ticks: {
+          font: { size: 10 },
+          color: '#737373',
+        },
+        border: {
+          color: '#e8e8e8',
+        },
+      },
+    },
+  }), [data])
+
   if (!history || history.length === 0) {
     return (
       <div className="h-48 sm:h-64 flex items-center justify-center text-gray-500 text-sm">
         No history data available
-      </div>
-    )
-  }
-
-  const renderLegend = (props: any) => {
-    const { payload } = props
-    return (
-      <div className="flex justify-center gap-2 sm:gap-4 mt-3 sm:mt-4 flex-wrap">
-        {payload.map((entry: any, index: number) => {
-          const key = entry.dataKey as SeriesKey
-          const isVisible = visibleSeries[key]
-          return (
-            <button
-              key={`legend-${index}`}
-              onClick={() => handleLegendClick(entry.dataKey)}
-              className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all ${
-                isVisible 
-                  ? 'opacity-100 hover:bg-gray-100' 
-                  : 'opacity-40 line-through hover:bg-gray-50'
-              }`}
-            >
-              <span
-                className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-xs sm:text-sm font-medium text-gray-700">{entry.value}</span>
-            </button>
-          )
-        })}
       </div>
     )
   }
@@ -134,7 +177,7 @@ export default function HealthScoreChart({ history }: Props) {
           {VIEW_MODES.map(({ value, label }) => (
             <button
               key={value}
-              onClick={() => setViewMode(value)}
+              onClick={() => { setViewMode(value); }}
               className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all ${
                 viewMode === value
                   ? 'bg-primary-600 text-white shadow-sm'
@@ -147,51 +190,34 @@ export default function HealthScoreChart({ history }: Props) {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height="100%" minHeight={200} className="!h-[200px] sm:!h-[300px]">
-        <LineChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e8" />
-          <XAxis 
-            dataKey="displayDay" 
-            tick={{ fontSize: 10, fill: '#737373' }}
-            axisLine={{ stroke: '#e8e8e8' }}
-            tickLine={{ stroke: '#e8e8e8' }}
-            interval="preserveStartEnd"
-            tickMargin={8}
-          />
-          <YAxis 
-            domain={[0, 100]} 
-            tick={{ fontSize: 10, fill: '#737373' }}
-            axisLine={{ stroke: '#e8e8e8' }}
-            tickLine={{ stroke: '#e8e8e8' }}
-            width={30}
-          />
-          <Tooltip 
-            formatter={(value) => [value ?? 0, '']}
-            labelFormatter={(label) => `Date: ${label}`}
-            contentStyle={{ 
-              backgroundColor: 'white', 
-              border: '1px solid #e8e8e8',
-              borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
-              fontSize: '12px'
-            }}
-          />
-          <Legend content={renderLegend} />
-          {(Object.keys(SERIES_CONFIG) as SeriesKey[]).map(key => (
-            <Line
+      <div className="h-[200px] sm:h-[300px]">
+        <Line data={chartData} options={options} />
+      </div>
+
+      {/* Custom Legend */}
+      <div className="flex justify-center gap-2 sm:gap-4 mt-3 sm:mt-4 flex-wrap">
+        {(Object.keys(SERIES_CONFIG) as SeriesKey[]).map(key => {
+          const config = SERIES_CONFIG[key]
+          const isVisible = visibleSeries[key]
+          return (
+            <button
               key={key}
-              type="monotone"
-              dataKey={key}
-              name={SERIES_CONFIG[key].name}
-              stroke={SERIES_CONFIG[key].color}
-              strokeWidth={2}
-              dot={false}
-              connectNulls
-              hide={!visibleSeries[key]}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+              onClick={() => { handleLegendClick(key); }}
+              className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all ${
+                isVisible 
+                  ? 'opacity-100 hover:bg-gray-100' 
+                  : 'opacity-40 line-through hover:bg-gray-50'
+              }`}
+            >
+              <span
+                className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: config.color }}
+              />
+              <span className="text-xs sm:text-sm font-medium text-gray-700">{config.name}</span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

@@ -53,11 +53,11 @@ export default function Assets() {
   })
 
   const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['assets'] })
-    queryClient.invalidateQueries({ queryKey: ['asset-entries'] })
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-    queryClient.invalidateQueries({ queryKey: ['history'] })
-    queryClient.invalidateQueries({ queryKey: ['detailed-history'] })
+    void queryClient.invalidateQueries({ queryKey: ['assets'] })
+    void queryClient.invalidateQueries({ queryKey: ['asset-entries'] })
+    void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    void queryClient.invalidateQueries({ queryKey: ['history'] })
+    void queryClient.invalidateQueries({ queryKey: ['detailed-history'] })
   }
 
   const createMutation = useMutation({
@@ -91,12 +91,12 @@ export default function Assets() {
   const deleteEntryMutation = useMutation({
     mutationFn: ({ assetId, entryId }: { assetId: number; entryId: number }) => 
       deleteAssetEntry(assetId, entryId),
-    onSuccess: () => invalidateAll(),
+    onSuccess: () => { invalidateAll(); },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteAsset,
-    onSuccess: () => invalidateAll(),
+    onSuccess: () => { invalidateAll(); },
   })
 
   const closeForm = () => {
@@ -212,7 +212,7 @@ export default function Assets() {
               <FormField label="Category">
                 <Select
                   value={assetForm.category}
-                  onChange={(e) => setAssetForm({ ...assetForm, category: e.target.value })}
+                  onChange={(e) => { setAssetForm({ ...assetForm, category: e.target.value }); }}
                 >
                   {CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -223,7 +223,7 @@ export default function Assets() {
               <FormField label="Type">
                 <Select
                   value={assetForm.asset_type}
-                  onChange={(e) => setAssetForm({ ...assetForm, asset_type: e.target.value as 'stock' | 'manual' })}
+                  onChange={(e) => { setAssetForm({ ...assetForm, asset_type: e.target.value as 'stock' | 'manual' }); }}
                 >
                   <option value="manual">Manual</option>
                   <option value="stock">Stock</option>
@@ -234,7 +234,7 @@ export default function Assets() {
                 <Input
                   type="text"
                   value={assetForm.name}
-                  onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
+                  onChange={(e) => { setAssetForm({ ...assetForm, name: e.target.value }); }}
                   placeholder="e.g., Apple Inc."
                   required
                 />
@@ -245,7 +245,7 @@ export default function Assets() {
                   <Input
                     type="text"
                     value={assetForm.ticker}
-                    onChange={(e) => setAssetForm({ ...assetForm, ticker: e.target.value.toUpperCase() })}
+                    onChange={(e) => { setAssetForm({ ...assetForm, ticker: e.target.value.toUpperCase() }); }}
                     placeholder="e.g., AAPL"
                   />
                 </FormField>
@@ -254,7 +254,7 @@ export default function Assets() {
               <FormField label="Currency">
                 <Select
                   value={assetForm.currency}
-                  onChange={(e) => setAssetForm({ ...assetForm, currency: e.target.value })}
+                  onChange={(e) => { setAssetForm({ ...assetForm, currency: e.target.value }); }}
                 >
                   {CURRENCIES.map((cur) => (
                     <option key={cur} value={cur}>{cur}</option>
@@ -266,7 +266,7 @@ export default function Assets() {
                 <Input
                   type="date"
                   value={assetForm.entry_date}
-                  onChange={(e) => setAssetForm({ ...assetForm, entry_date: e.target.value })}
+                  onChange={(e) => { setAssetForm({ ...assetForm, entry_date: e.target.value }); }}
                 />
               </FormField>
 
@@ -275,7 +275,7 @@ export default function Assets() {
                   type="text"
                   inputMode="decimal"
                   value={assetForm.units}
-                  onChange={(e) => setAssetForm({ ...assetForm, units: e.target.value })}
+                  onChange={(e) => { setAssetForm({ ...assetForm, units: e.target.value }); }}
                   placeholder="0"
                 />
               </FormField>
@@ -285,7 +285,7 @@ export default function Assets() {
                   type="text"
                   inputMode="decimal"
                   value={assetForm.unit_value}
-                  onChange={(e) => setAssetForm({ ...assetForm, unit_value: e.target.value })}
+                  onChange={(e) => { setAssetForm({ ...assetForm, unit_value: e.target.value }); }}
                   placeholder="0"
                 />
               </FormField>
@@ -294,7 +294,7 @@ export default function Assets() {
                 <Input
                   type="text"
                   value={assetForm.notes}
-                  onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
+                  onChange={(e) => { setAssetForm({ ...assetForm, notes: e.target.value }); }}
                 />
               </FormField>
             </div>
@@ -344,7 +344,7 @@ export default function Assets() {
                 >
                   <td>
                     <button
-                      onClick={() => toggleExpand(asset.id)}
+                      onClick={() => { toggleExpand(asset.id); }}
                       className="p-1 text-gray-400 hover:text-gray-600 transition-transform"
                       title="Show history"
                     >
@@ -375,7 +375,7 @@ export default function Assets() {
                   </td>
                   <td className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="xs" onClick={() => openUpdate(asset)}>
+                      <Button variant="ghost" size="xs" onClick={() => { openUpdate(asset); }}>
                         Update
                       </Button>
                       <Button 
@@ -419,7 +419,7 @@ export default function Assets() {
                                       <Input
                                         type="date"
                                         value={editEntryForm.entry_date}
-                                        onChange={(e) => setEditEntryForm({ ...editEntryForm, entry_date: e.target.value })}
+                                        onChange={(e) => { setEditEntryForm({ ...editEntryForm, entry_date: e.target.value }); }}
                                         className="w-32 text-sm"
                                       />
                                     </td>
@@ -428,7 +428,7 @@ export default function Assets() {
                                         type="text"
                                         inputMode="decimal"
                                         value={editEntryForm.units}
-                                        onChange={(e) => setEditEntryForm({ ...editEntryForm, units: e.target.value })}
+                                        onChange={(e) => { setEditEntryForm({ ...editEntryForm, units: e.target.value }); }}
                                         className="w-24 text-sm text-right"
                                       />
                                     </td>
@@ -437,7 +437,7 @@ export default function Assets() {
                                         type="text"
                                         inputMode="decimal"
                                         value={editEntryForm.unit_value}
-                                        onChange={(e) => setEditEntryForm({ ...editEntryForm, unit_value: e.target.value })}
+                                        onChange={(e) => { setEditEntryForm({ ...editEntryForm, unit_value: e.target.value }); }}
                                         className="w-28 text-sm text-right"
                                       />
                                     </td>
@@ -448,7 +448,7 @@ export default function Assets() {
                                       <Input
                                         type="text"
                                         value={editEntryForm.notes}
-                                        onChange={(e) => setEditEntryForm({ ...editEntryForm, notes: e.target.value })}
+                                        onChange={(e) => { setEditEntryForm({ ...editEntryForm, notes: e.target.value }); }}
                                         className="w-32 text-sm"
                                       />
                                     </td>
@@ -457,7 +457,7 @@ export default function Assets() {
                                         <Button
                                           variant="primary"
                                           size="xs"
-                                          onClick={(e) => handleEditEntrySubmit(e, asset.id, entry.id)}
+                                          onClick={(e) => { handleEditEntrySubmit(e, asset.id, entry.id); }}
                                           loading={updateEntryMutation.isPending}
                                         >
                                           Save
@@ -465,7 +465,7 @@ export default function Assets() {
                                         <Button
                                           variant="ghost"
                                           size="xs"
-                                          onClick={() => setEditingEntryId(null)}
+                                          onClick={() => { setEditingEntryId(null); }}
                                         >
                                           Cancel
                                         </Button>
@@ -481,10 +481,10 @@ export default function Assets() {
                                     <td className="py-2 text-left pl-4 text-gray-500">{entry.notes || '-'}</td>
                                     <td className="py-2 text-right">
                                       <div className="flex items-center justify-end gap-2">
-                                        <Button variant="ghost" size="xs" onClick={() => openEditEntry(entry)}>
+                                        <Button variant="ghost" size="xs" onClick={() => { openEditEntry(entry); }}>
                                           Edit
                                         </Button>
-                                        <Button variant="danger" size="xs" onClick={() => handleDeleteEntry(asset.id, entry.id)}>
+                                        <Button variant="danger" size="xs" onClick={() => { handleDeleteEntry(asset.id, entry.id); }}>
                                           Delete
                                         </Button>
                                       </div>
@@ -511,7 +511,7 @@ export default function Assets() {
                           <Input
                             type="date"
                             value={entryForm.entry_date}
-                            onChange={(e) => setEntryForm({ ...entryForm, entry_date: e.target.value })}
+                            onChange={(e) => { setEntryForm({ ...entryForm, entry_date: e.target.value }); }}
                             className="w-36"
                           />
                         </FormField>
@@ -520,7 +520,7 @@ export default function Assets() {
                             type="text"
                             inputMode="decimal"
                             value={entryForm.units}
-                            onChange={(e) => setEntryForm({ ...entryForm, units: e.target.value })}
+                            onChange={(e) => { setEntryForm({ ...entryForm, units: e.target.value }); }}
                             placeholder="0"
                             className="w-28"
                           />
@@ -530,7 +530,7 @@ export default function Assets() {
                             type="text"
                             inputMode="decimal"
                             value={entryForm.unit_value}
-                            onChange={(e) => setEntryForm({ ...entryForm, unit_value: e.target.value })}
+                            onChange={(e) => { setEntryForm({ ...entryForm, unit_value: e.target.value }); }}
                             placeholder="0"
                             className="w-32"
                           />
@@ -539,7 +539,7 @@ export default function Assets() {
                           <Input
                             type="text"
                             value={entryForm.notes}
-                            onChange={(e) => setEntryForm({ ...entryForm, notes: e.target.value })}
+                            onChange={(e) => { setEntryForm({ ...entryForm, notes: e.target.value }); }}
                             className="w-40"
                           />
                         </FormField>
@@ -550,7 +550,7 @@ export default function Assets() {
                           <Button type="submit" size="sm" loading={addEntryMutation.isPending}>
                             Save
                           </Button>
-                          <Button type="button" variant="ghost" size="sm" onClick={() => setUpdateAssetId(null)}>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => { setUpdateAssetId(null); }}>
                             Cancel
                           </Button>
                         </div>
@@ -569,7 +569,7 @@ export default function Assets() {
                     title="No assets yet"
                     description="Add your first asset to start tracking your portfolio."
                     action={
-                      <Button onClick={() => setShowForm(true)}>
+                      <Button onClick={() => { setShowForm(true); }}>
                         + Add Asset
                       </Button>
                     }
